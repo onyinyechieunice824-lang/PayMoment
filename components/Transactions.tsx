@@ -112,9 +112,9 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
           </div>
         </div>
 
-        {/* Date Filter Bar - REFINED FOR CONTRAST */}
-        <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[2.5rem] border border-slate-300 dark:border-slate-800 shadow-xl flex flex-col md:flex-row items-end gap-6 transition-all">
-          <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Date Filter Bar - ENHANCED VISIBILITY FIX */}
+        <div className="bg-white dark:bg-slate-900 p-5 md:p-8 rounded-[2.5rem] border border-slate-300 dark:border-slate-800 shadow-xl flex flex-col md:flex-row items-end gap-5 transition-all">
+          <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="space-y-2">
               <label className="text-[11px] font-black text-slate-900 dark:text-slate-400 uppercase tracking-widest px-1">Starting Period</label>
               <div className="relative group">
@@ -122,7 +122,8 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
                   type="date" 
                   value={startDate} 
                   onChange={(e) => setStartDate(e.target.value)} 
-                  className="w-full bg-white dark:bg-slate-800/50 p-5 rounded-[1.5rem] border-2 border-slate-300 dark:border-slate-700 text-xs font-black text-slate-900 dark:text-white outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm cursor-pointer pr-12"
+                  style={{ colorScheme: 'light dark' }}
+                  className="w-full bg-white dark:bg-slate-800 p-4 min-h-[56px] rounded-2xl border-2 border-slate-300 dark:border-slate-700 text-sm font-bold text-slate-900 dark:text-white outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm cursor-pointer pr-12 appearance-none"
                 />
                 <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
@@ -136,7 +137,8 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
                   type="date" 
                   value={endDate} 
                   onChange={(e) => setEndDate(e.target.value)} 
-                  className="w-full bg-white dark:bg-slate-800/50 p-5 rounded-[1.5rem] border-2 border-slate-300 dark:border-slate-700 text-xs font-black text-slate-900 dark:text-white outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm cursor-pointer pr-12"
+                  style={{ colorScheme: 'light dark' }}
+                  className="w-full bg-white dark:bg-slate-800 p-4 min-h-[56px] rounded-2xl border-2 border-slate-300 dark:border-slate-700 text-sm font-bold text-slate-900 dark:text-white outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm cursor-pointer pr-12 appearance-none"
                 />
                 <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
@@ -148,7 +150,7 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
           {(startDate || endDate || filter !== 'all') && (
             <button 
               onClick={clearFilters}
-              className="w-full md:w-auto text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest px-8 py-5 bg-rose-50 dark:bg-rose-950/20 rounded-[1.5rem] border-2 border-rose-200 dark:border-rose-900/30 tap-scale"
+              className="w-full md:w-auto text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest px-6 py-4 bg-rose-50 dark:bg-rose-950/20 rounded-2xl border-2 border-rose-200 dark:border-rose-900/30 tap-scale h-[56px]"
             >
               Reset
             </button>
