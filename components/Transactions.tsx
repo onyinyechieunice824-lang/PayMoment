@@ -45,21 +45,24 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
   };
 
   const handleShare = async (tx: Transaction) => {
-    const shareData = {
-      title: 'PayMoment Receipt',
-      text: `Receipt for my ${tx.type === 'credit' ? 'incoming' : 'outgoing'} payment of ₦${tx.amount.toLocaleString()} on PayMoment.`,
-      url: window.location.href,
-    };
-
+    const shareText = `PayMoment Receipt\nType: ${tx.type.toUpperCase()}\nAmount: ₦${tx.amount.toLocaleString()}\nCategory: ${tx.category}\nRef: PM-${tx.id.toUpperCase()}\nDate: ${tx.timestamp}`;
+    
     if (navigator.share) {
       try {
-        await navigator.share(shareData);
+        await navigator.share({
+          title: 'PayMoment Transaction Receipt',
+          text: shareText,
+          url: window.location.href,
+        });
+        notify("Receipt shared!", "success");
       } catch (err) {
-        console.log('Share failed', err);
+        // Fallback for cancellation
+        navigator.clipboard.writeText(shareText);
+        notify("Receipt copied to clipboard", "info");
       }
     } else {
-      navigator.clipboard.writeText(shareData.text);
-      notify('Receipt details copied!', 'info');
+      navigator.clipboard.writeText(shareText);
+      notify("Receipt details copied!", "info");
     }
   };
 
@@ -228,7 +231,7 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
 
                   <div className="pt-10 space-y-4">
                     <div className="grid grid-cols-2 gap-4">
-                        <button onClick={() => handleShare(selectedTx)} className="py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl text-[10px]">Share</button>
+                        <button onClick={() => handleShare(selectedTx)} className="py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl text-[10px]">Share Receipt</button>
                         <button onClick={() => setSelectedTx(null)} className="py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-black uppercase tracking-widest text-[10px]">Close</button>
                     </div>
                     

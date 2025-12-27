@@ -13,9 +13,11 @@ interface TransferProps {
 
 const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTransaction }) => {
   const navigate = useNavigate();
-  const [step, setStep] = useState<'details' | 'confirm' | 'success'>('details');
+  const [step, setStep] = useState<'details' | 'confirm' | 'authorize' | 'success'>('details');
   const [type, setType] = useState<'bank' | 'paymoment'>('bank');
   const [payMomentMethod, setPayMomentMethod] = useState<'username' | 'account'>('username');
+  const [authMode, setAuthMode] = useState<'pin' | 'biometric'>('pin');
+  const [authStatus, setAuthStatus] = useState<'idle' | 'verifying'>('idle');
   
   const [bank, setBank] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
@@ -23,22 +25,18 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
   const [amount, setAmount] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [verifiedName, setVerifiedName] = useState('');
-  const [saveBeneficiary, setSaveBeneficiary] = useState(false);
-  const [beneficiaryName, setBeneficiaryName] = useState('');
-
-  const localBeneficiaries = user.beneficiaries.filter(b => b.type === 'local');
+  const [pin, setPin] = useState('');
+  const [lastTxId, setLastTxId] = useState('');
 
   // INSTANT NAME CONFIRMATION ENGINE
   useEffect(() => {
     let isVerifying = false;
     let mockName = '';
 
-    // Criteria for External Bank
     if (type === 'bank' && accountNumber.length === 10 && bank) {
       isVerifying = true;
       mockName = 'CHINEDU EMMANUEL OKORO';
     } 
-    // Criteria for Internal PayMoment
     else if (type === 'paymoment') {
       if (payMomentMethod === 'username' && payMomentValue.length >= 3) {
         isVerifying = true;
@@ -52,7 +50,6 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
     if (isVerifying) {
       setVerifying(true);
       setVerifiedName('');
-      // Simulate high-speed database lookup
       const timer = setTimeout(() => {
         setVerifying(false);
         setVerifiedName(mockName);
@@ -63,6 +60,28 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
       setVerifiedName('');
     }
   }, [accountNumber, bank, type, payMomentMethod, payMomentValue]);
+
+  const handleShareReceipt = async () => {
+    const shareText = `PayMoment Receipt\nAmount: ₦${Number(amount).toLocaleString()}\nRecipient: ${verifiedName}\nRef: PM-${lastTxId.toUpperCase()}\nStatus: SUCCESSFUL`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'PayMoment Payment Receipt',
+          text: shareText,
+          url: window.location.origin
+        });
+        notify("Receipt shared!", "success");
+      } catch (err) {
+        // Fallback for cancellation or error
+        navigator.clipboard.writeText(shareText);
+        notify("Receipt details copied to clipboard", "info");
+      }
+    } else {
+      navigator.clipboard.writeText(shareText);
+      notify("Share not supported. Receipt copied to clipboard.", "info");
+    }
+  };
 
   const handleTransferRequest = () => {
     const numericAmount = parseFloat(amount);
@@ -77,17 +96,31 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
     setStep('confirm');
   };
 
-  const selectBeneficiary = (b: Beneficiary) => {
-    setType('bank');
-    setBank(b.details.bank || '');
-    setAccountNumber(b.details.accountNumber || '');
-    setVerifiedName(b.name);
+  const handlePinInput = (num: string) => {
+    if (pin.length < 4) {
+      const newPin = pin + num;
+      setPin(newPin);
+      if (newPin.length === 4) {
+        finalizeTransfer();
+      }
+    }
+  };
+
+  const handleBiometricAuth = () => {
+    setAuthStatus('verifying');
+    setTimeout(() => {
+      setAuthStatus('idle');
+      finalizeTransfer();
+    }, 1500);
   };
 
   const finalizeTransfer = () => {
     const numericAmount = parseFloat(amount);
+    const txId = Math.random().toString(36).substr(2, 9);
+    setLastTxId(txId);
+
     const tx: Transaction = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: txId,
       type: 'debit',
       amount: numericAmount,
       title: `Transfer to ${verifiedName || accountNumber || payMomentValue}`,
@@ -97,20 +130,6 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
     };
 
     processTransaction(tx, 'NGN');
-
-    if (saveBeneficiary && beneficiaryName.trim()) {
-      const newBeneficiary: Beneficiary = {
-        id: Math.random().toString(36).substr(2, 9),
-        name: beneficiaryName,
-        type: 'local',
-        details: type === 'bank' ? { bank, accountNumber } : { accountNumber: payMomentValue }
-      };
-      setUser({
-        ...user,
-        beneficiaries: [...user.beneficiaries, newBeneficiary]
-      });
-    }
-
     setStep('success');
     notify(`₦${numericAmount.toLocaleString()} sent successfully!`, 'success');
   };
@@ -129,11 +148,80 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
         <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border-2 border-slate-100 dark:border-slate-800 shadow-xl w-full max-w-sm space-y-6">
           <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
             <span>Moment Ref</span>
-            <span className="text-slate-900 dark:text-white font-mono bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg">PM-{Math.random().toString(36).substr(2, 9).toUpperCase()}</span>
+            <span className="text-slate-900 dark:text-white font-mono bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg">PM-{lastTxId.toUpperCase()}</span>
           </div>
-          <button className="w-full py-5 bg-slate-950 dark:bg-slate-100 text-white dark:text-slate-950 rounded-2xl font-black uppercase tracking-widest text-xs tap-scale shadow-lg">Share Receipt</button>
+          <button onClick={handleShareReceipt} className="w-full py-5 bg-slate-950 dark:bg-slate-100 text-white dark:text-slate-950 rounded-2xl font-black uppercase tracking-widest text-xs tap-scale shadow-lg">Share Receipt</button>
         </div>
         <button onClick={() => navigate('/')} className="text-blue-600 dark:text-blue-400 font-black uppercase tracking-widest text-[11px] tap-scale underline underline-offset-4 decoration-2">Return to Dashboard</button>
+      </div>
+    );
+  }
+
+  if (step === 'authorize') {
+    return (
+      <div className="fixed inset-0 z-[250] bg-slate-950/95 backdrop-blur-2xl flex flex-col items-center justify-center p-6 animate-in fade-in duration-300">
+        <div className="w-full max-w-md space-y-12">
+          <div className="text-center space-y-2">
+            <div className="w-20 h-20 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto border-2 border-blue-500/30 mb-6">
+              <span className="text-4xl">{authMode === 'pin' ? '🔐' : '🧬'}</span>
+            </div>
+            <h2 className="text-3xl font-black text-white italic tracking-tighter">Security Check</h2>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Authorize ₦{Number(amount).toLocaleString()}</p>
+          </div>
+
+          {authMode === 'pin' ? (
+            <div className="space-y-12">
+              <div className="flex justify-center gap-6">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className={`w-5 h-5 rounded-full border-2 transition-all duration-300 ${pin.length > i ? 'bg-white border-white scale-125 shadow-[0_0_15px_white]' : 'border-white/20'}`} />
+                ))}
+              </div>
+              <div className="grid grid-cols-3 gap-6 max-w-xs mx-auto">
+                {['1','2','3','4','5','6','7','8','9','','0','del'].map((key, i) => (
+                  <button 
+                    key={i}
+                    onClick={() => {
+                      if (key === 'del') setPin(pin.slice(0, -1));
+                      else if (key && pin.length < 4) handlePinInput(key);
+                    }}
+                    className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black text-white transition-all ${key ? 'bg-white/5 border border-white/10 hover:bg-white/10 active:scale-90' : 'pointer-events-none'}`}
+                  >
+                    {key === 'del' ? '←' : key}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center space-y-10 py-10">
+               <button 
+                onClick={handleBiometricAuth}
+                disabled={authStatus === 'verifying'}
+                className={`w-32 h-32 rounded-full flex items-center justify-center transition-all duration-500 tap-scale relative ${authStatus === 'verifying' ? 'bg-blue-600/30' : 'bg-white/5 border-2 border-white/10'}`}
+               >
+                 <svg className={`w-16 h-16 ${authStatus === 'verifying' ? 'text-blue-400 animate-pulse' : 'text-white/40'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 0012 3m0 18a10.003 10.003 0 01-8.212-4.33l-.054-.09m9.158-11.154l-.054-.09A10.003 10.003 0 0012 20M3 12h18" />
+                 </svg>
+                 {authStatus === 'verifying' && <div className="absolute inset-0 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>}
+               </button>
+               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{authStatus === 'verifying' ? 'Scanning Fingerprint...' : 'Tap icon to use Touch ID'}</p>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-6 pt-10">
+            <button 
+              onClick={() => { setAuthMode(authMode === 'pin' ? 'biometric' : 'pin'); setPin(''); }}
+              className="text-[10px] font-black text-blue-400 uppercase tracking-widest hover:text-blue-300 transition-colors"
+            >
+              Switch to {authMode === 'pin' ? 'Fingerprint' : 'PIN'}
+            </button>
+            <button 
+              onClick={() => setStep('confirm')}
+              className="text-[10px] font-black text-rose-500 uppercase tracking-widest"
+            >
+              Cancel Authorization
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -150,55 +238,54 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
       <div className="flex items-end justify-between px-1">
         <div>
           <h2 className="text-4xl font-black italic tracking-tighter text-slate-900 dark:text-white leading-none">Send Money</h2>
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mt-2">Instant Wealth Mobility</p>
+          <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] mt-2">Instant Wealth Mobility</p>
         </div>
-        <div className="w-14 h-14 bg-blue-50 dark:bg-blue-900/20 rounded-[1.5rem] flex items-center justify-center text-3xl shadow-inner">💸</div>
+        <div className="w-14 h-14 bg-blue-100 dark:bg-blue-900/20 rounded-[1.5rem] flex items-center justify-center text-3xl shadow-inner">💸</div>
       </div>
 
-      {/* Primary Toggle: External vs PayMoment - BRIGHTER & SHARPER */}
-      <div className="bg-white dark:bg-slate-900 p-2 rounded-[2.5rem] flex border-2 border-slate-100 dark:border-slate-800 shadow-lg transition-colors overflow-hidden">
+      <div className="bg-slate-200 dark:bg-slate-800 p-2 rounded-[2.5rem] flex border-2 border-slate-300 dark:border-slate-700 shadow-md transition-colors overflow-hidden">
         <button 
           onClick={() => { setType('bank'); setVerifiedName(''); }} 
-          className={`flex-1 py-5 rounded-[2rem] text-[11px] font-black uppercase tracking-widest transition-all tap-scale ${type === 'bank' ? 'bg-blue-500 text-white shadow-xl shadow-blue-500/40' : 'text-slate-400 hover:text-blue-600'}`}
+          className={`flex-1 py-5 rounded-[2rem] text-[12px] font-black uppercase tracking-widest transition-all tap-scale ${type === 'bank' ? 'bg-blue-600 text-white shadow-2xl shadow-blue-500/50' : 'text-slate-500 dark:text-slate-400 hover:text-blue-600'}`}
         >
           Other Bank
         </button>
         <button 
           onClick={() => { setType('paymoment'); setVerifiedName(''); }} 
-          className={`flex-1 py-5 rounded-[2rem] text-[11px] font-black uppercase tracking-widest transition-all tap-scale ${type === 'paymoment' ? 'bg-purple-500 text-white shadow-xl shadow-purple-500/40' : 'text-slate-400 hover:text-purple-600'}`}
+          className={`flex-1 py-5 rounded-[2rem] text-[12px] font-black uppercase tracking-widest transition-all tap-scale ${type === 'paymoment' ? 'bg-purple-600 text-white shadow-2xl shadow-purple-500/50' : 'text-slate-500 dark:text-slate-400 hover:text-purple-600'}`}
         >
           PayMoment User
         </button>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-8 md:p-12 border-2 border-slate-100 dark:border-slate-800 shadow-2xl space-y-10 transition-colors">
+      <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-8 md:p-12 border-2 border-slate-300 dark:border-slate-700 shadow-2xl space-y-10 transition-colors">
         {type === 'bank' ? (
           <div className="space-y-8">
             <div className="space-y-3">
-              <label className="text-[10px] font-black text-slate-950 dark:text-slate-300 uppercase tracking-widest px-2">1. Choose Recipient Bank</label>
+              <label className="text-[11px] font-black text-slate-950 dark:text-slate-200 uppercase tracking-widest px-2">1. Choose Recipient Bank</label>
               <div className="relative group">
                 <select 
                   value={bank} 
                   onChange={(e) => setBank(e.target.value)} 
-                  className="w-full p-6 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-blue-500 rounded-3xl outline-none font-black text-sm text-slate-900 dark:text-white transition-all appearance-none shadow-sm group-hover:border-slate-300 dark:group-hover:border-slate-600"
+                  className="w-full p-6 bg-white dark:bg-slate-800 border-2 border-slate-400 dark:border-slate-600 focus:border-blue-600 rounded-3xl outline-none font-black text-base text-slate-950 dark:text-white transition-all appearance-none shadow-sm group-hover:border-slate-500"
                 >
                   <option value="">Select Bank...</option>
                   {NIGERIAN_BANKS.map(b => <option key={b} value={b}>{b}</option>)}
                 </select>
-                <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"/></svg>
+                <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-600 dark:text-slate-400 group-focus-within:text-blue-600 transition-colors">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M19 9l-7 7-7-7"/></svg>
                 </div>
               </div>
             </div>
             <div className="space-y-3">
-              <label className="text-[10px] font-black text-slate-950 dark:text-slate-300 uppercase tracking-widest px-2">2. Account Number</label>
+              <label className="text-[11px] font-black text-slate-950 dark:text-slate-200 uppercase tracking-widest px-2">2. Account Number</label>
               <input 
                 type="text" 
                 maxLength={10} 
                 value={accountNumber} 
                 onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))} 
                 placeholder="0123456789" 
-                className="w-full p-6 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-blue-500 rounded-3xl outline-none font-black text-xl tracking-[0.2em] tabular-nums text-slate-900 dark:text-white transition-all shadow-sm placeholder:text-slate-200 dark:placeholder:text-slate-700" 
+                className="w-full p-6 bg-white dark:bg-slate-800 border-2 border-slate-400 dark:border-slate-600 focus:border-blue-600 rounded-3xl outline-none font-black text-2xl tracking-[0.2em] tabular-nums text-slate-950 dark:text-white transition-all shadow-sm placeholder:text-slate-300 dark:placeholder:text-slate-700" 
               />
             </div>
           </div>
@@ -207,33 +294,33 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
             <div className="grid grid-cols-2 gap-6">
                <button 
                 onClick={() => { setPayMomentMethod('username'); setPayMomentValue(''); setVerifiedName(''); }}
-                className={`p-6 rounded-[2.5rem] border-4 transition-all flex flex-col items-center gap-3 tap-scale ${payMomentMethod === 'username' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-500 shadow-md' : 'bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-800'}`}
+                className={`p-6 rounded-[2.5rem] border-4 transition-all flex flex-col items-center gap-3 tap-scale ${payMomentMethod === 'username' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-600 shadow-md' : 'bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-800'}`}
                >
-                 <span className="text-3xl">👤</span>
-                 <span className={`font-black text-[10px] uppercase tracking-widest ${payMomentMethod === 'username' ? 'text-purple-600' : 'text-slate-400'}`}>Pay ID (@ID)</span>
+                 <span className="text-4xl">👤</span>
+                 <span className={`font-black text-[11px] uppercase tracking-widest ${payMomentMethod === 'username' ? 'text-purple-700' : 'text-slate-600'}`}>Pay ID (@ID)</span>
                </button>
                <button 
                 onClick={() => { setPayMomentMethod('account'); setPayMomentValue(''); setVerifiedName(''); }}
-                className={`p-6 rounded-[2.5rem] border-4 transition-all flex flex-col items-center gap-3 tap-scale ${payMomentMethod === 'account' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-500 shadow-md' : 'bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-800'}`}
+                className={`p-6 rounded-[2.5rem] border-4 transition-all flex flex-col items-center gap-3 tap-scale ${payMomentMethod === 'account' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-600 shadow-md' : 'bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-800'}`}
                >
                  <span className="text-3xl">🔢</span>
-                 <span className={`font-black text-[10px] uppercase tracking-widest ${payMomentMethod === 'account' ? 'text-purple-600' : 'text-slate-400'}`}>PM Account</span>
+                 <span className={`font-black text-[11px] uppercase tracking-widest ${payMomentMethod === 'account' ? 'text-purple-700' : 'text-slate-600'}`}>PM Account</span>
                </button>
             </div>
 
             <div className="space-y-3">
-              <label className="text-[10px] font-black text-slate-950 dark:text-slate-300 uppercase tracking-widest px-2">
+              <label className="text-[11px] font-black text-slate-950 dark:text-slate-200 uppercase tracking-widest px-2">
                 Recipient {payMomentMethod === 'username' ? 'Pay ID' : 'Account'}
               </label>
               <div className="relative group">
-                {payMomentMethod === 'username' && <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-slate-400 text-xl group-focus-within:text-purple-500 transition-colors">@</span>}
+                {payMomentMethod === 'username' && <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-slate-600 text-2xl group-focus-within:text-purple-600 transition-colors">@</span>}
                 <input 
                   type="text" 
                   value={payMomentValue}
                   maxLength={payMomentMethod === 'account' ? 10 : 20}
                   onChange={(e) => setPayMomentValue(payMomentMethod === 'account' ? e.target.value.replace(/\D/g, '') : e.target.value.toLowerCase())}
                   placeholder={payMomentMethod === 'username' ? 'username' : '0123456789'} 
-                  className={`w-full p-6 ${payMomentMethod === 'username' ? 'pl-12' : 'pl-6'} bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-purple-600 rounded-3xl outline-none font-black text-xl text-slate-900 dark:text-white transition-all shadow-sm placeholder:text-slate-200 dark:placeholder:text-slate-700`} 
+                  className={`w-full p-6 ${payMomentMethod === 'username' ? 'pl-12' : 'pl-6'} bg-white dark:bg-slate-800 border-2 border-slate-400 dark:border-slate-600 focus:border-purple-600 rounded-3xl outline-none font-black text-2xl text-slate-950 dark:text-white transition-all shadow-sm placeholder:text-slate-300 dark:placeholder:text-slate-700`} 
                 />
               </div>
             </div>
@@ -241,72 +328,72 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
         )}
 
         {/* REAL-TIME VERIFICATION FEEDBACK - BRIGHTER & POPS */}
-        <div className="min-h-[100px]">
+        <div className="min-h-[110px]">
           {verifying && (
-            <div className="flex items-center gap-4 p-6 bg-blue-50 dark:bg-blue-900/20 border-2 border-dashed border-blue-200 dark:border-blue-800 rounded-[2rem] animate-pulse">
-               <div className="w-10 h-10 rounded-full border-4 border-blue-500 border-t-transparent animate-spin"></div>
-               <span className="text-[11px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">Security Lookup in Progress...</span>
+            <div className="flex items-center gap-4 p-6 bg-blue-50 dark:bg-blue-900/40 border-4 border-dashed border-blue-400 rounded-[2rem] animate-pulse">
+               <div className="w-10 h-10 rounded-full border-4 border-blue-600 border-t-transparent animate-spin"></div>
+               <span className="text-[12px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-200">Security Lookup Active...</span>
             </div>
           )}
 
           {verifiedName && (
-            <div className="p-8 bg-emerald-50 dark:bg-emerald-950/30 border-4 border-emerald-500 rounded-[2.5rem] flex items-center justify-between animate-in zoom-in-95 duration-300 shadow-xl shadow-emerald-500/10">
+            <div className="p-8 bg-gradient-to-r from-emerald-500/10 to-emerald-500/20 dark:from-emerald-500/20 dark:to-emerald-500/30 border-4 border-emerald-500 rounded-[2.5rem] flex items-center justify-between animate-in zoom-in-95 duration-300 shadow-2xl shadow-emerald-500/20">
                <div className="flex items-center gap-5">
-                  <div className="w-14 h-14 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-2xl shadow-md border-2 border-emerald-100 dark:border-emerald-900">👤</div>
+                  <div className="w-16 h-16 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-3xl shadow-lg border-2 border-emerald-200 dark:border-emerald-700">👤</div>
                   <div>
-                    <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.2em] leading-none mb-2">Authenticated Recipient</p>
-                    <p className="text-lg font-black text-slate-950 dark:text-white leading-none tracking-tight italic">{verifiedName}</p>
+                    <p className="text-[11px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-[0.2em] leading-none mb-2">Confirmed Recipient</p>
+                    <p className="text-xl font-black text-slate-950 dark:text-white leading-none tracking-tight italic">{verifiedName}</p>
                   </div>
                </div>
-               <div className="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center text-white shadow-lg">🛡️</div>
+               <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center text-white shadow-xl">🛡️</div>
             </div>
           )}
         </div>
 
         <div className="space-y-3">
-          <label className="text-[10px] font-black text-slate-950 dark:text-slate-300 uppercase tracking-widest px-2">3. Amount to Transfer</label>
+          <label className="text-[11px] font-black text-slate-950 dark:text-slate-200 uppercase tracking-widest px-2">3. Amount to Transfer</label>
           <div className="relative group">
-            <span className="absolute left-8 top-1/2 -translate-y-1/2 font-black text-slate-950 dark:text-white text-3xl group-focus-within:text-blue-600 transition-colors">₦</span>
+            <span className="absolute left-8 top-1/2 -translate-y-1/2 font-black text-slate-950 dark:text-white text-4xl group-focus-within:text-blue-600 transition-colors">₦</span>
             <input 
               type="text" 
               value={amount} 
               onChange={(e) => setAmount(e.target.value.replace(/\D/g, ''))} 
               placeholder="0.00" 
-              className="w-full p-8 pl-16 bg-white dark:bg-slate-800 border-4 border-slate-100 dark:border-slate-800 focus:border-blue-500 rounded-[2.5rem] outline-none font-black text-5xl tabular-nums text-slate-950 dark:text-white transition-all shadow-inner placeholder:text-slate-100 dark:placeholder:text-slate-900" 
+              className="w-full p-8 pl-16 bg-white dark:bg-slate-800 border-4 border-slate-200 dark:border-slate-700 focus:border-blue-500 rounded-[2.5rem] outline-none font-black text-5xl tabular-nums text-slate-950 dark:text-white transition-all shadow-inner placeholder:text-slate-100 dark:placeholder:text-slate-800" 
             />
           </div>
         </div>
 
         {step === 'confirm' ? (
-          <div className="bg-slate-950 dark:bg-blue-600 p-10 rounded-[3rem] text-white space-y-8 animate-in slide-in-from-top-4 shadow-2xl">
+          <div className="bg-slate-950 dark:bg-blue-600 p-10 rounded-[3rem] text-white space-y-8 animate-in slide-in-from-top-4 shadow-2xl border-4 border-blue-500/20">
              <div className="space-y-2">
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50">Payment Authorization</p>
-                <h4 className="text-4xl font-black italic tracking-tighter leading-none">₦{Number(amount).toLocaleString()} Total</h4>
+                <p className="text-[11px] font-black uppercase tracking-[0.3em] text-white/60">Final Authorization</p>
+                <h4 className="text-5xl font-black italic tracking-tighter leading-none">₦{Number(amount).toLocaleString()}</h4>
              </div>
-             <div className="p-6 bg-white/10 rounded-[1.5rem] flex justify-between items-center text-xs font-black uppercase tracking-widest border border-white/10">
-                <span>Moment Fee</span>
-                <span className="text-emerald-400">FREE INSTANT</span>
+             <div className="p-6 bg-white/10 rounded-[1.5rem] flex justify-between items-center text-xs font-black uppercase tracking-widest border-2 border-white/20">
+                <span>Network Fee</span>
+                <span className="text-emerald-400">₦0.00 (Moment Free)</span>
              </div>
-             <button onClick={finalizeTransfer} className="w-full py-6 bg-white text-slate-950 rounded-2xl font-black uppercase tracking-widest shadow-2xl active:scale-95 transition-all text-xs">Authorize with Moment PIN</button>
-             <button onClick={() => setStep('details')} className="w-full text-[10px] font-black uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity">Edit Transaction</button>
+             <button onClick={() => { setPin(''); setStep('authorize'); }} className="w-full py-6 bg-white text-slate-950 rounded-2xl font-black uppercase tracking-widest shadow-2xl active:scale-95 transition-all text-xs">Authorize Transfer</button>
+             <button onClick={() => setStep('details')} className="w-full text-[11px] font-black uppercase tracking-widest opacity-60 hover:opacity-100 transition-opacity">Edit Transaction</button>
           </div>
         ) : (
           <button 
             disabled={!amount || !verifiedName} 
             onClick={handleTransferRequest} 
-            className="w-full py-7 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-500 text-white rounded-[2.5rem] font-black uppercase tracking-[0.3em] shadow-2xl shadow-blue-500/30 active:scale-[0.98] disabled:opacity-20 transition-all text-xs flex items-center justify-center gap-4"
+            className="w-full py-7 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white rounded-[2.5rem] font-black uppercase tracking-[0.3em] shadow-2xl shadow-blue-500/40 active:scale-[0.98] disabled:opacity-30 transition-all text-[13px] flex items-center justify-center gap-4"
           >
-            Review & Send Moment
+            Review Transfer
           </button>
         )}
       </div>
 
-      <div className="bg-blue-600 p-8 rounded-[2.5rem] flex gap-6 items-center shadow-xl shadow-blue-500/20">
-         <span className="text-4xl">💎</span>
+      <div className="bg-blue-600 p-8 rounded-[2.5rem] flex gap-6 items-center shadow-2xl shadow-blue-500/30">
+         <span className="text-5xl">💎</span>
          <div>
-           <p className="text-[11px] font-black text-white uppercase tracking-widest leading-relaxed mb-1">Moment Reward Active</p>
+           <p className="text-[12px] font-black text-white uppercase tracking-widest leading-relaxed mb-1">Moment Reward Active</p>
            <p className="text-xs font-bold text-blue-100 opacity-90 leading-tight">
-             Earn <span className="text-white font-black underline decoration-2">15 MomentPoints</span> on this transfer. Internal transfers are always free.
+             You are about to earn <span className="text-white font-black underline decoration-2">25 Points</span> on this transaction.
            </p>
          </div>
       </div>
