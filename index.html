@@ -60,8 +60,44 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        input[type="date"] { color-scheme: light; }
-        .dark input[type="date"] { color-scheme: dark; }
+        /* MOBILE DATE INPUT VISIBILITY FIX */
+        input[type="date"] { 
+            color-scheme: light; 
+            position: relative;
+        }
+        .dark input[type="date"] { 
+            color-scheme: dark; 
+        }
+
+        /* Target the internal container of the date input to force color */
+        input[type="date"]::-webkit-datetime-edit,
+        input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+        input[type="date"]::-webkit-datetime-edit-text,
+        input[type="date"]::-webkit-datetime-edit-month-field,
+        input[type="date"]::-webkit-datetime-edit-day-field,
+        input[type="date"]::-webkit-datetime-edit-year-field {
+            color: #0f172a !important; /* Slate-900 for light mode */
+            opacity: 1 !important;
+        }
+
+        /* Override for Dark Mode */
+        .dark input[type="date"]::-webkit-datetime-edit,
+        .dark input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+        .dark input[type="date"]::-webkit-datetime-edit-text,
+        .dark input[type="date"]::-webkit-datetime-edit-month-field,
+        .dark input[type="date"]::-webkit-datetime-edit-day-field,
+        .dark input[type="date"]::-webkit-datetime-edit-year-field {
+            color: #ffffff !important; /* Pure white for dark mode */
+        }
+
+        /* Ensure the native calendar icon is visible but doesn't clash */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(0.2);
+            cursor: pointer;
+        }
+        .dark input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
 
         /* ADVANCED PDF PRINT ENGINE - FIXED */
         @media print {
