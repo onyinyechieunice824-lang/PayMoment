@@ -45,15 +45,29 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
     setEndDate('');
   };
 
+  const getRecipientAccount = (tx: Transaction) => {
+    if (tx.type === 'credit') return user.accountNumber;
+    // Extract 10-digit account number from title if present
+    const match = tx.title.match(/\d{10}/);
+    return match ? match[0] : 'PM-DIRECT-INTERNAL';
+  };
+
+  const getSenderName = (tx: Transaction) => {
+    if (tx.type === 'debit') return user.name;
+    // For credits, the sender is usually the source in the title
+    if (tx.title.includes('from')) return tx.title.split('from ')[1];
+    return tx.title || 'System Payment';
+  };
+
   const generateReceiptCanvas = async (tx: Transaction) => {
     const canvas = document.createElement('canvas');
     canvas.width = 800;
-    canvas.height = 1000;
+    canvas.height = 1200; // Increased height for more rows
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, 800, 1000);
+    ctx.fillRect(0, 0, 800, 1200);
 
     ctx.fillStyle = '#1E3A8A';
     ctx.fillRect(0, 0, 800, 180);
@@ -86,23 +100,26 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
       y += 80;
     };
 
+    drawRow('Sender Name', getSenderName(tx));
+    drawRow('Recipient Account', getRecipientAccount(tx));
     drawRow('Description', tx.title);
+    drawRow('Narration', tx.remark || 'N/A');
     drawRow('Category', tx.category);
     drawRow('Reference', `PM-${tx.id.toUpperCase()}`);
     drawRow('Timestamp', tx.timestamp);
     drawRow('Status', tx.status.toUpperCase());
 
     ctx.fillStyle = '#1E3A8A';
-    ctx.fillRect(60, 900, 680, 4);
+    ctx.fillRect(60, 1140, 680, 4);
     ctx.fillStyle = '#94a3b8';
     ctx.font = 'italic bold 18px Inter, sans-serif';
-    ctx.fillText('Verified Financial Document. End-to-end Encrypted.', 60, 940);
+    ctx.fillText('Verified Financial Document. End-to-end Encrypted.', 60, 1180);
 
     return canvas.toDataURL('image/png');
   };
 
   const handleShare = async (tx: Transaction, mode: 'link' | 'image' | 'pdf') => {
-    const summary = `PayMoment Receipt\nType: ${tx.type.toUpperCase()}\nAmount: ₦${tx.amount.toLocaleString()}\nRef: PM-${tx.id.toUpperCase()}\nDate: ${tx.timestamp}`;
+    const summary = `PayMoment Receipt\nSender: ${getSenderName(tx)}\nRecipient Acc: ${getRecipientAccount(tx)}\nAmount: ₦${tx.amount.toLocaleString()}\nRef: PM-${tx.id.toUpperCase()}`;
     
     if (mode === 'pdf') {
       window.print();
@@ -310,7 +327,10 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
                     </div>
 
                     <div className="space-y-6 px-4 py-10">
-                        <ReceiptRow label="To/From" value={selectedTx.title} />
+                        <ReceiptRow label="Sender Name" value={getSenderName(selectedTx)} />
+                        <ReceiptRow label="Recipient Account" value={getRecipientAccount(selectedTx)} valueClass="font-mono bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded" />
+                        <ReceiptRow label="Description" value={selectedTx.title} />
+                        <ReceiptRow label="Narration / Remark" value={selectedTx.remark || 'N/A'} />
                         <ReceiptRow label="Category" value={selectedTx.category} />
                         <ReceiptRow label="Time" value={selectedTx.timestamp} />
                         <ReceiptRow label="Ref" value={`PM-${selectedTx.id.toUpperCase()}`} valueClass="font-mono text-[11px] bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded" />
@@ -329,21 +349,21 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
                          label="Link" 
                          color="bg-blue-600" 
                          onClick={() => handleShare(selectedTx, 'link')} 
-                         disabled={sharingStatus === 'generating'}
+                         disabled={sharingStatus === 'generating'} 
                        />
                        <ShareButton 
                          icon="🖼️" 
                          label="Image" 
                          color="bg-purple-600" 
                          onClick={() => handleShare(selectedTx, 'image')} 
-                         disabled={sharingStatus === 'generating'}
+                         disabled={sharingStatus === 'generating'} 
                        />
                        <ShareButton 
                          icon="📄" 
                          label="PDF" 
                          color="bg-emerald-600" 
                          onClick={() => handleShare(selectedTx, 'pdf')} 
-                         disabled={sharingStatus === 'generating'}
+                         disabled={sharingStatus === 'generating'} 
                        />
                     </div>
 

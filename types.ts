@@ -8,6 +8,7 @@ export interface Transaction {
   timestamp: string;
   status: 'completed' | 'pending' | 'failed' | 'reversed' | 'recovery_active';
   isWrongTransfer?: boolean;
+  remark?: string; // New: Narration for the payment
 }
 
 export interface DebtInfo {

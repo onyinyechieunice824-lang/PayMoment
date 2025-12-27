@@ -25,10 +25,14 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
   const [accountNumber, setAccountNumber] = useState('');
   const [payMomentValue, setPayMomentValue] = useState('');
   const [amount, setAmount] = useState('');
+  const [remark, setRemark] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [verifiedName, setVerifiedName] = useState('');
   const [pin, setPin] = useState('');
   const [lastTxId, setLastTxId] = useState('');
+
+  // Get recipient account for receipt logic
+  const currentRecipientAcc = type === 'bank' ? accountNumber : (payMomentMethod === 'account' ? payMomentValue : 'PayMoment ID');
 
   // INSTANT NAME CONFIRMATION ENGINE
   useEffect(() => {
@@ -66,13 +70,13 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
   const generateReceiptCanvas = async () => {
     const canvas = document.createElement('canvas');
     canvas.width = 800;
-    canvas.height = 1000;
+    canvas.height = 1200; // Increased height
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
     // Background
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, 800, 1000);
+    ctx.fillRect(0, 0, 800, 1200);
 
     // Header
     ctx.fillStyle = '#1E3A8A';
@@ -109,24 +113,27 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
       y += 80;
     };
 
-    drawRow('Recipient', verifiedName || 'N/A');
+    drawRow('Sender Name', user.name);
+    drawRow('Recipient Account', currentRecipientAcc);
+    drawRow('Recipient Name', verifiedName || 'N/A');
     drawRow('Bank', type === 'bank' ? bank : 'PayMoment Internal');
+    drawRow('Remark', remark || 'N/A');
     drawRow('Reference', `PM-${lastTxId.toUpperCase()}`);
     drawRow('Date', new Date().toLocaleString());
     drawRow('Status', 'SUCCESSFUL');
 
     // Footer
     ctx.fillStyle = '#1E3A8A';
-    ctx.fillRect(60, 900, 680, 4);
+    ctx.fillRect(60, 1140, 680, 4);
     ctx.fillStyle = '#94a3b8';
     ctx.font = 'italic bold 18px Inter, sans-serif';
-    ctx.fillText('Thank you for choosing PayMoment. Secure, Fast, Global.', 60, 940);
+    ctx.fillText('Thank you for choosing PayMoment. Secure, Fast, Global.', 60, 1180);
 
     return canvas.toDataURL('image/png');
   };
 
   const handleShare = async (mode: 'link' | 'image' | 'pdf') => {
-    const summary = `PayMoment Receipt\nRef: PM-${lastTxId.toUpperCase()}\nAmount: ₦${Number(amount).toLocaleString()}\nTo: ${verifiedName}\nStatus: SUCCESSFUL`;
+    const summary = `PayMoment Receipt\nSender: ${user.name}\nTo: ${verifiedName}\nAcc: ${currentRecipientAcc}\nAmount: ₦${Number(amount).toLocaleString()}\nRemark: ${remark}\nRef: PM-${lastTxId.toUpperCase()}`;
     
     if (mode === 'pdf') {
       window.print();
@@ -218,7 +225,8 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
       title: `Transfer to ${verifiedName || accountNumber || payMomentValue}`,
       category: 'Transfer',
       timestamp: new Date().toLocaleString(),
-      status: 'completed'
+      status: 'completed',
+      remark: remark // Persist remark to history
     };
 
     processTransaction(tx, 'NGN');
@@ -249,8 +257,11 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
            </div>
            
            <div className="space-y-4">
-              <ReceiptDetailRow label="Recipient" value={verifiedName} />
+              <ReceiptDetailRow label="Sender" value={user.name} />
+              <ReceiptDetailRow label="Recipient Acc" value={currentRecipientAcc} isMono />
+              <ReceiptDetailRow label="Recipient Name" value={verifiedName} />
               <ReceiptDetailRow label="Amount" value={`₦${Number(amount).toLocaleString()}`} />
+              <ReceiptDetailRow label="Remark" value={remark || 'None'} />
               <ReceiptDetailRow label="Ref" value={`PM-${lastTxId.toUpperCase()}`} isMono />
               <ReceiptDetailRow label="Status" value="SUCCESSFUL" />
               <ReceiptDetailRow label="Time" value={new Date().toLocaleString()} />
@@ -506,11 +517,23 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
           </div>
         </div>
 
+        <div className="space-y-3">
+          <label className="text-[11px] font-black text-slate-950 dark:text-slate-200 uppercase tracking-widest px-2">4. Remark / Narration (Optional)</label>
+          <input 
+            type="text" 
+            value={remark} 
+            onChange={(e) => setRemark(e.target.value)} 
+            placeholder="What's this for? e.g. Lunch money" 
+            className="w-full p-5 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:border-blue-500 font-bold transition-all text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-slate-600" 
+          />
+        </div>
+
         {step === 'confirm' ? (
           <div className="bg-slate-950 dark:bg-blue-600 p-10 rounded-[3rem] text-white space-y-8 animate-in slide-in-from-top-4 shadow-2xl border-4 border-blue-500/20">
              <div className="space-y-2">
                 <p className="text-[11px] font-black uppercase tracking-[0.3em] text-white/60">Final Authorization</p>
                 <h4 className="text-5xl font-black italic tracking-tighter leading-none">₦{Number(amount).toLocaleString()}</h4>
+                {remark && <p className="text-xs font-bold opacity-60">“{remark}”</p>}
              </div>
              <div className="p-6 bg-white/10 rounded-[1.5rem] flex justify-between items-center text-xs font-black uppercase tracking-widest border-2 border-white/20">
                 <span>Network Fee</span>
