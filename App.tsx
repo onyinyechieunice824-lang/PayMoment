@@ -238,34 +238,23 @@ const App: React.FC = () => {
     setTimeout(() => setNotification(null), 4000);
   }, []);
 
-  /**
-   * Enhanced processTransaction with Debt Recovery (Auto-Sweep)
-   */
   const processTransaction = useCallback((tx: Transaction, currency: string = 'NGN') => {
     setUser(prev => {
       let updatedUser = { ...prev };
       const updatedBalances = { ...prev.balances };
       
-      // Debit logic
       if (tx.type === 'debit') {
         updatedBalances[currency] -= tx.amount;
-      } 
-      // Credit logic with Auto-Sweep for Debtors
-      else {
+      } else {
         if (currency === 'NGN' && prev.debtInfo?.isBlacklisted && prev.debtInfo.totalOwed > 0) {
           const sweepAmount = Math.min(tx.amount, prev.debtInfo.totalOwed);
-          
-          // Deduct from the credit and apply to debt
           updatedBalances[currency] += (tx.amount - sweepAmount);
-          
           const updatedDebt = prev.debtInfo.totalOwed - sweepAmount;
           updatedUser.debtInfo = {
             ...prev.debtInfo,
             totalOwed: updatedDebt,
-            isBlacklisted: updatedDebt > 0 // Un-blacklist if debt is cleared
+            isBlacklisted: updatedDebt > 0 
           };
-
-          // Record a system transaction for the recovery
           const recoveryTx: Transaction = {
             id: `recovery-${Math.random().toString(36).substr(2, 5)}`,
             type: 'debit',
@@ -276,8 +265,6 @@ const App: React.FC = () => {
             status: 'completed'
           };
           updatedUser.transactions = [recoveryTx, tx, ...prev.transactions];
-          
-          // Log notification locally
           setTimeout(() => notify(`₦${sweepAmount.toLocaleString()} swept to clear your debt.`, 'info'), 100);
         } else {
           updatedBalances[currency] += tx.amount;

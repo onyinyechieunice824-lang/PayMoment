@@ -129,9 +129,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, notify, processTra
           <button onClick={() => navigate('/dom-accounts')} className="text-[10px] font-black text-blue-700 dark:text-blue-400 uppercase tracking-widest hover:opacity-70 transition-opacity">Explore Global Hub →</button>
         </div>
 
-        <div className="relative overflow-hidden bg-gradient-to-br from-blue-900 via-indigo-900 to-purple-900 rounded-[2.5rem] md:rounded-[3rem] px-5 py-8 md:p-12 text-white shadow-2xl transition-all group">
+        {/* REFINED PADDING AND OVERFLOW FOR MOBILE PORTRAIT */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-blue-900 via-indigo-900 to-purple-900 rounded-[2.5rem] md:rounded-[3rem] px-4 xs:px-6 py-8 md:p-12 text-white shadow-2xl transition-all group">
           <div className="relative z-10 space-y-8 md:space-y-12">
-            <div className="flex justify-between items-center gap-4">
+            <div className="flex justify-between items-center gap-3">
               <div className="space-y-4 flex-1 min-w-0">
                 <div className="flex items-center gap-3">
                   <div className="flex bg-white/10 p-1 rounded-2xl backdrop-blur-md border border-white/20 w-fit">
@@ -139,13 +140,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, notify, processTra
                       <button 
                         key={curr}
                         onClick={(e) => { e.stopPropagation(); setCurrency(curr as any); }}
-                        className={`px-4 py-1.5 text-[10px] font-black rounded-xl transition-all tap-scale ${currency === curr ? 'bg-white text-blue-900 shadow-lg' : 'text-white/60 hover:text-white'}`}
+                        className={`px-3 py-1.5 xs:px-4 text-[10px] font-black rounded-xl transition-all tap-scale ${currency === curr ? 'bg-white text-blue-900 shadow-lg' : 'text-white/60 hover:text-white'}`}
                       >
                         {curr}
                       </button>
                     ))}
                   </div>
-                  {/* Watermark Logo for Brand Visibility */}
+                  {/* Watermark Logo for Visibility */}
                   <div className="opacity-40 scale-75 origin-left">
                     <PayMomentLogo className="w-8 h-8" idSuffix="dashboard-card" />
                   </div>
@@ -166,7 +167,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, notify, processTra
                 onClick={() => setShowBalance(!showBalance)}
                 className="p-3 md:p-4 bg-white/10 rounded-2xl md:rounded-3xl hover:bg-white/20 transition-all backdrop-blur-sm border border-white/10 tap-scale flex-shrink-0 shadow-lg ring-4 ring-white/5"
               >
-                <span className="text-xl md:text-2xl">{showBalance ? '👁️' : '🕶️'}</span>
+                <span className="text-lg md:text-2xl">{showBalance ? '👁️' : '🕶️'}</span>
               </button>
             </div>
             
@@ -179,20 +180,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, notify, processTra
               </div>
               <button onClick={() => navigate('/cards')} className="flex items-center gap-3 bg-white/20 px-6 py-3 rounded-2xl hover:bg-white/30 transition-all font-black backdrop-blur-sm border border-white/10 tap-scale">
                  <span className="text-2xl">💳</span>
-                 <span className="text-[10px] uppercase tracking-[0.2em]">Moment Cards</span>
+                 <span className="text-[10px] uppercase tracking-[0.2em]">Cards</span>
               </button>
             </div>
           </div>
-          {/* Subtle logo background watermark */}
           <div className="absolute -bottom-10 -right-10 opacity-5 rotate-12 scale-150 pointer-events-none">
-             <PayMomentLogo className="w-64 h-64" idSuffix="watermark" />
+             <PayMomentLogo className="w-64 h-64" idSuffix="watermark-dashboard" />
           </div>
-          <div className="absolute top-[-40px] right-[-40px] w-96 h-96 bg-white/10 rounded-full blur-[120px] group-hover:scale-110 transition-transform duration-1000"></div>
+          <div className="absolute top-[-40px] right-[-40px] w-96 h-96 bg-white/10 rounded-full blur-[120px]"></div>
         </div>
       </div>
 
-      {/* QUICK ACCESS BAR */}
-      <div className="flex md:grid md:grid-cols-8 gap-2 overflow-x-auto no-scrollbar pb-2 px-1">
+      {/* QUICK ACCESS GRID: 2 ROWS of 4 ON MOBILE PORTRAIT, 1 ROW ON LANDSCAPE/MD */}
+      <div className="grid grid-cols-4 md:grid-cols-8 gap-2 px-1">
         <QuickButton onClick={() => navigate('/transfer')} icon="💸" label="Send" color="bg-blue-600" />
         <QuickButton onClick={() => navigate('/bills')} icon="📱" label="Bills" color="bg-purple-600" />
         <QuickButton onClick={() => navigate('/investments')} icon="📈" label="Invest" color="bg-emerald-600" />
@@ -234,9 +234,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, notify, processTra
                   <div className="text-right">
                     <p className={`text-base font-black transition-colors ${tx.type === 'credit' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
                       {tx.type === 'credit' ? '+' : '-'}₦{tx.amount.toLocaleString()}
-                    </p>
-                    <p className={`text-[9px] font-black uppercase tracking-widest mt-1 ${tx.status === 'recovery_active' ? 'text-amber-500' : 'text-slate-400'}`}>
-                      {tx.status === 'recovery_active' ? 'Pending' : 'Success'}
                     </p>
                   </div>
                 </div>
@@ -301,12 +298,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, notify, processTra
                 >
                   {isFunding ? 'Simulating Incoming Wire...' : 'Demo: Simulate ₦50k Transfer'}
                 </button>
-                <button 
-                  onClick={() => setShowFundModal(false)}
-                  className="w-full text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-blue-600 transition-colors"
-                >
-                  Back to Wallet
-                </button>
               </div>
            </div>
         </div>
@@ -316,7 +307,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, notify, processTra
 };
 
 const QuickButton = ({ onClick, icon, label, color }: any) => (
-  <button onClick={onClick} className={`flex flex-col items-center justify-center gap-1.5 p-3.5 min-w-[75px] md:min-w-0 ${color} rounded-2xl shadow-lg tap-scale group shrink-0`}>
+  <button onClick={onClick} className={`flex flex-col items-center justify-center gap-1.5 p-3.5 ${color} rounded-2xl shadow-lg tap-scale group`}>
     <div className="text-xl transition-transform group-hover:-translate-y-1">{icon}</div>
     <span className="text-[8px] font-black text-white uppercase tracking-widest text-center leading-none">{label}</span>
   </button>
