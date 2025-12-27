@@ -211,6 +211,7 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
                   type="date" 
                   value={startDate} 
                   onChange={(e) => setStartDate(e.target.value)} 
+                  placeholder="mm/dd/yyyy"
                   className="w-full bg-slate-50 dark:bg-slate-800/80 px-3 md:px-5 py-4 min-h-[56px] rounded-2xl border-2 border-slate-200 dark:border-slate-700 text-[11px] md:text-base font-black text-slate-900 dark:text-white outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm cursor-pointer"
                 />
               </div>
@@ -222,6 +223,7 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
                   type="date" 
                   value={endDate} 
                   onChange={(e) => setEndDate(e.target.value)} 
+                  placeholder="mm/dd/yyyy"
                   className="w-full bg-slate-50 dark:bg-slate-800/80 px-3 md:px-5 py-4 min-h-[56px] rounded-2xl border-2 border-slate-200 dark:border-slate-700 text-[11px] md:text-base font-black text-slate-900 dark:text-white outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm cursor-pointer"
                 />
               </div>

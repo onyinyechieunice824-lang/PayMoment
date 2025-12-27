@@ -60,7 +60,7 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* MOBILE DATE INPUT VISIBILITY FIX - ADVANCED OVERRIDE */
+        /* MOBILE DATE INPUT VISIBILITY FIX - THE "DESKTOP LOOK" ON MOBILE */
         input[type="date"] { 
             color-scheme: light; 
             position: relative;
@@ -74,20 +74,40 @@
             color-scheme: dark; 
         }
 
-        /* Force visibility of the internal text container on mobile */
+        /* Force mm/dd/yyyy placeholder behavior on mobile browsers that don't support it */
+        input[type="date"]::before {
+            content: attr(placeholder);
+            position: absolute;
+            left: 20px;
+            color: #94a3b8; /* Slate-400 */
+            font-weight: 800;
+            pointer-events: none;
+            display: block;
+        }
+        
+        .dark input[type="date"]::before {
+            color: #475569; /* Slate-600 */
+        }
+
+        /* Hide placeholder when focused or has value */
+        input[type="date"]:focus::before,
+        input[type="date"]:not([value=""])::before {
+            display: none !important;
+            content: "" !important;
+        }
+
+        /* Force visibility of internal text fields */
         input[type="date"]::-webkit-datetime-edit {
             color: #0f172a !important; 
             opacity: 1 !important;
-            display: inline-flex !important;
+            display: flex !important;
             padding: 0 !important;
-            line-height: normal !important;
         }
 
         .dark input[type="date"]::-webkit-datetime-edit {
             color: #ffffff !important; 
         }
 
-        /* Specifically target the individual field components */
         input[type="date"]::-webkit-datetime-edit-fields-wrapper,
         input[type="date"]::-webkit-datetime-edit-text,
         input[type="date"]::-webkit-datetime-edit-month-field,
@@ -101,10 +121,10 @@
         input[type="date"]::-webkit-calendar-picker-indicator {
             filter: invert(0.2);
             cursor: pointer;
-            padding: 0;
-            margin: 0;
             position: absolute;
-            right: 12px;
+            right: 15px;
+            padding: 5px;
+            z-index: 5;
         }
         .dark input[type="date"]::-webkit-calendar-picker-indicator {
             filter: invert(1);
