@@ -60,40 +60,51 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* MOBILE DATE INPUT VISIBILITY FIX */
+        /* MOBILE DATE INPUT VISIBILITY FIX - ADVANCED OVERRIDE */
         input[type="date"] { 
             color-scheme: light; 
             position: relative;
+            -webkit-appearance: none;
+            appearance: none;
+            min-height: 56px;
+            display: flex;
+            align-items: center;
         }
         .dark input[type="date"] { 
             color-scheme: dark; 
         }
 
-        /* Target the internal container of the date input to force color */
-        input[type="date"]::-webkit-datetime-edit,
+        /* Force visibility of the internal text container on mobile */
+        input[type="date"]::-webkit-datetime-edit {
+            color: #0f172a !important; 
+            opacity: 1 !important;
+            display: inline-flex !important;
+            padding: 0 !important;
+            line-height: normal !important;
+        }
+
+        .dark input[type="date"]::-webkit-datetime-edit {
+            color: #ffffff !important; 
+        }
+
+        /* Specifically target the individual field components */
         input[type="date"]::-webkit-datetime-edit-fields-wrapper,
         input[type="date"]::-webkit-datetime-edit-text,
         input[type="date"]::-webkit-datetime-edit-month-field,
         input[type="date"]::-webkit-datetime-edit-day-field,
         input[type="date"]::-webkit-datetime-edit-year-field {
-            color: #0f172a !important; /* Slate-900 for light mode */
+            color: inherit !important;
             opacity: 1 !important;
         }
 
-        /* Override for Dark Mode */
-        .dark input[type="date"]::-webkit-datetime-edit,
-        .dark input[type="date"]::-webkit-datetime-edit-fields-wrapper,
-        .dark input[type="date"]::-webkit-datetime-edit-text,
-        .dark input[type="date"]::-webkit-datetime-edit-month-field,
-        .dark input[type="date"]::-webkit-datetime-edit-day-field,
-        .dark input[type="date"]::-webkit-datetime-edit-year-field {
-            color: #ffffff !important; /* Pure white for dark mode */
-        }
-
-        /* Ensure the native calendar icon is visible but doesn't clash */
+        /* Calendar icon styling */
         input[type="date"]::-webkit-calendar-picker-indicator {
             filter: invert(0.2);
             cursor: pointer;
+            padding: 0;
+            margin: 0;
+            position: absolute;
+            right: 12px;
         }
         .dark input[type="date"]::-webkit-calendar-picker-indicator {
             filter: invert(1);
@@ -101,19 +112,15 @@
 
         /* ADVANCED PDF PRINT ENGINE - FIXED */
         @media print {
-            /* Hide the entire body contents by default using visibility */
             body * {
                 visibility: hidden !important;
             }
-            /* Reset body background for a clean white PDF */
             body {
                 background: white !important;
             }
-            /* Make the receipt and its contents visible */
             .print-container, .print-container * {
                 visibility: visible !important;
             }
-            /* Force the receipt to the top-left of the page */
             .print-container {
                 position: absolute !important;
                 left: 0 !important;
@@ -126,15 +133,12 @@
                 box-shadow: none !important;
                 display: block !important;
             }
-            /* Ensure text is black for legibility */
             .print-container span, .print-container p, .print-container h1, .print-container h2, .print-container h3, .print-container h4 {
                 color: black !important;
             }
-            /* Explicitly hide things marked as no-print */
             .no-print {
                 display: none !important;
             }
-            /* Help browsers render colors/backgrounds in the PDF */
             * {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;

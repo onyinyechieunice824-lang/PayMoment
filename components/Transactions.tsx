@@ -201,28 +201,28 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
           </div>
         </div>
 
-        {/* Date Filter Bar */}
-        <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-xl flex flex-col md:flex-row items-end gap-5 transition-all">
-          <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Date Filter Bar - Fixed to grid-cols-2 for side-by-side layout on mobile */}
+        <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-xl flex flex-col items-stretch gap-5 transition-all">
+          <div className="w-full grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-[11px] font-black text-slate-900 dark:text-slate-400 uppercase tracking-widest px-1">Starting Period</label>
+              <label className="text-[9px] md:text-[11px] font-black text-slate-900 dark:text-slate-400 uppercase tracking-widest px-1">Starting Period</label>
               <div className="relative group">
                 <input 
                   type="date" 
                   value={startDate} 
                   onChange={(e) => setStartDate(e.target.value)} 
-                  className="w-full bg-slate-50 dark:bg-slate-800/80 px-5 py-4 min-h-[56px] rounded-2xl border-2 border-slate-200 dark:border-slate-700 text-sm md:text-base font-bold text-slate-900 dark:text-white outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm cursor-pointer"
+                  className="w-full bg-slate-50 dark:bg-slate-800/80 px-3 md:px-5 py-4 min-h-[56px] rounded-2xl border-2 border-slate-200 dark:border-slate-700 text-[11px] md:text-base font-black text-slate-900 dark:text-white outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm cursor-pointer"
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-[11px] font-black text-slate-900 dark:text-slate-400 uppercase tracking-widest px-1">Ending Period</label>
+              <label className="text-[9px] md:text-[11px] font-black text-slate-900 dark:text-slate-400 uppercase tracking-widest px-1">Ending Period</label>
               <div className="relative group">
                 <input 
                   type="date" 
                   value={endDate} 
                   onChange={(e) => setEndDate(e.target.value)} 
-                  className="w-full bg-slate-50 dark:bg-slate-800/80 px-5 py-4 min-h-[56px] rounded-2xl border-2 border-slate-200 dark:border-slate-700 text-sm md:text-base font-bold text-slate-900 dark:text-white outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm cursor-pointer"
+                  className="w-full bg-slate-50 dark:bg-slate-800/80 px-3 md:px-5 py-4 min-h-[56px] rounded-2xl border-2 border-slate-200 dark:border-slate-700 text-[11px] md:text-base font-black text-slate-900 dark:text-white outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm cursor-pointer"
                 />
               </div>
             </div>
@@ -231,9 +231,9 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
           {(startDate || endDate || filter !== 'all') && (
             <button 
               onClick={clearFilters}
-              className="w-full md:w-auto text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest px-6 py-4 bg-rose-50 dark:bg-rose-950/20 rounded-2xl border-2 border-rose-200 dark:border-rose-900/30 tap-scale h-[56px]"
+              className="w-full text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest px-6 py-4 bg-rose-50 dark:bg-rose-950/20 rounded-2xl border-2 border-rose-200 dark:border-rose-900/30 tap-scale h-[56px]"
             >
-              Reset
+              Reset Filters
             </button>
           )}
         </div>
