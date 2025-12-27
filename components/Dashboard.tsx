@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Transaction } from '../types';
-import { UserAvatar } from '../App';
+import { UserAvatar, PayMomentLogo } from '../App';
 
 interface DashboardProps {
   user: User;
@@ -122,65 +122,76 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, notify, processTra
         </div>
       </div>
 
-      {/* Balance Card Section - MOVED UP */}
+      {/* Balance Card Section */}
       <div className="space-y-4">
         <div className="flex justify-between items-center px-2">
           <p className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Premium Wallets</p>
           <button onClick={() => navigate('/dom-accounts')} className="text-[10px] font-black text-blue-700 dark:text-blue-400 uppercase tracking-widest hover:opacity-70 transition-opacity">Explore Global Hub →</button>
         </div>
 
-        <div className="relative overflow-hidden bg-gradient-to-br from-blue-900 via-indigo-900 to-purple-900 rounded-[3rem] p-8 md:p-12 text-white shadow-2xl transition-all group">
+        <div className="relative overflow-hidden bg-gradient-to-br from-blue-900 via-indigo-900 to-purple-900 rounded-[2.5rem] md:rounded-[3rem] px-5 py-8 md:p-12 text-white shadow-2xl transition-all group">
           <div className="relative z-10 space-y-8 md:space-y-12">
-            <div className="flex justify-between items-start">
-              <div className="space-y-5">
-                <div className="flex bg-white/10 p-1 rounded-2xl backdrop-blur-md border border-white/20 w-fit">
-                  {['NGN', 'USD'].map((curr) => (
-                    <button 
-                      key={curr}
-                      onClick={(e) => { e.stopPropagation(); setCurrency(curr as any); }}
-                      className={`px-4 py-2 text-[10px] font-black rounded-xl transition-all tap-scale ${currency === curr ? 'bg-white text-blue-900 shadow-lg' : 'text-white/60 hover:text-white'}`}
-                    >
-                      {curr}
-                    </button>
-                  ))}
+            <div className="flex justify-between items-center gap-4">
+              <div className="space-y-4 flex-1 min-w-0">
+                <div className="flex items-center gap-3">
+                  <div className="flex bg-white/10 p-1 rounded-2xl backdrop-blur-md border border-white/20 w-fit">
+                    {['NGN', 'USD'].map((curr) => (
+                      <button 
+                        key={curr}
+                        onClick={(e) => { e.stopPropagation(); setCurrency(curr as any); }}
+                        className={`px-4 py-1.5 text-[10px] font-black rounded-xl transition-all tap-scale ${currency === curr ? 'bg-white text-blue-900 shadow-lg' : 'text-white/60 hover:text-white'}`}
+                      >
+                        {curr}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Watermark Logo for Brand Visibility */}
+                  <div className="opacity-40 scale-75 origin-left">
+                    <PayMomentLogo className="w-8 h-8" idSuffix="dashboard-card" />
+                  </div>
                 </div>
-                <h2 className="text-5xl md:text-7xl font-black tracking-tighter flex items-baseline gap-2 tabular-nums">
+                <h2 className="text-3xl xs:text-4xl md:text-7xl font-black tracking-tighter flex items-baseline gap-1 tabular-nums truncate leading-none">
                   {showBalance 
                     ? (
                       <>
-                        <span className="text-2xl md:text-4xl opacity-40 font-medium italic">{currency === 'NGN' ? '₦' : currency === 'USD' ? '$' : '£'}</span>
+                        <span className="text-lg md:text-4xl opacity-40 font-medium italic">{currency === 'NGN' ? '₦' : currency === 'USD' ? '$' : '£'}</span>
                         {displayedBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </>
                     )
                     : '••••••••'}
                 </h2>
               </div>
+              
               <button 
                 onClick={() => setShowBalance(!showBalance)}
-                className="p-4 bg-white/10 rounded-3xl hover:bg-white/20 transition-all backdrop-blur-sm border border-white/10 tap-scale"
+                className="p-3 md:p-4 bg-white/10 rounded-2xl md:rounded-3xl hover:bg-white/20 transition-all backdrop-blur-sm border border-white/10 tap-scale flex-shrink-0 shadow-lg ring-4 ring-white/5"
               >
-                {showBalance ? '👁️' : '🕶️'}
+                <span className="text-xl md:text-2xl">{showBalance ? '👁️' : '🕶️'}</span>
               </button>
             </div>
             
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pt-2">
               <div className="flex flex-wrap gap-2">
-                <div className="bg-white/10 px-5 py-3 rounded-2xl text-[10px] font-black tracking-tight backdrop-blur-sm border border-white/10">ID: @{user.payMomentId}</div>
-                <div className={`px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${user.debtInfo?.isBlacklisted ? 'bg-rose-500/20 text-rose-300 border-rose-500/20' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/20'}`}>
-                   {user.debtInfo?.isBlacklisted ? 'System Hold Active' : `Tier ${user.tier} Synchronized`}
+                <div className="bg-white/10 px-5 py-2.5 rounded-2xl text-[9px] font-black tracking-tight backdrop-blur-sm border border-white/10">ID: @{user.payMomentId}</div>
+                <div className={`px-5 py-2.5 rounded-2xl text-[9px] font-black uppercase tracking-widest border transition-all ${user.debtInfo?.isBlacklisted ? 'bg-rose-500/20 text-rose-300 border-rose-500/20' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/20'}`}>
+                   {user.debtInfo?.isBlacklisted ? 'System Hold Active' : `Tier ${user.tier} Account`}
                 </div>
               </div>
-              <button onClick={() => navigate('/cards')} className="flex items-center gap-4 bg-white/20 px-8 py-4 rounded-[2rem] hover:bg-white/30 transition-all font-black backdrop-blur-sm border border-white/10 tap-scale">
-                 <span className="text-3xl">💳</span>
-                 <span className="text-xs uppercase tracking-[0.2em]">Moment Cards</span>
+              <button onClick={() => navigate('/cards')} className="flex items-center gap-3 bg-white/20 px-6 py-3 rounded-2xl hover:bg-white/30 transition-all font-black backdrop-blur-sm border border-white/10 tap-scale">
+                 <span className="text-2xl">💳</span>
+                 <span className="text-[10px] uppercase tracking-[0.2em]">Moment Cards</span>
               </button>
             </div>
+          </div>
+          {/* Subtle logo background watermark */}
+          <div className="absolute -bottom-10 -right-10 opacity-5 rotate-12 scale-150 pointer-events-none">
+             <PayMomentLogo className="w-64 h-64" idSuffix="watermark" />
           </div>
           <div className="absolute top-[-40px] right-[-40px] w-96 h-96 bg-white/10 rounded-full blur-[120px] group-hover:scale-110 transition-transform duration-1000"></div>
         </div>
       </div>
 
-      {/* QUICK ACCESS BAR - MOVED DOWN */}
+      {/* QUICK ACCESS BAR */}
       <div className="flex md:grid md:grid-cols-8 gap-2 overflow-x-auto no-scrollbar pb-2 px-1">
         <QuickButton onClick={() => navigate('/transfer')} icon="💸" label="Send" color="bg-blue-600" />
         <QuickButton onClick={() => navigate('/bills')} icon="📱" label="Bills" color="bg-purple-600" />

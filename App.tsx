@@ -35,16 +35,16 @@ interface Notification {
 const STORAGE_KEY = 'paymoment_user_data';
 const LOGIN_KEY = 'paymoment_is_logged_in';
 
-export const PayMomentLogo = ({ className = "w-10 h-10" }: { className?: string }) => (
+export const PayMomentLogo = ({ className = "w-10 h-10", idSuffix = "main" }: { className?: string, idSuffix?: string }) => (
   <div className={className}>
     <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-sm">
       <defs>
-        <linearGradient id="pmLogoGradient" x1="0" y1="0" x2="100" y2="100">
+        <linearGradient id={`pmLogoGradient-${idSuffix}`} x1="0" y1="0" x2="100" y2="100">
           <stop offset="0%" stopColor="#1E3A8A" />
           <stop offset="100%" stopColor="#7C3AED" />
         </linearGradient>
       </defs>
-      <rect width="100" height="100" rx="28" fill="url(#pmLogoGradient)" />
+      <rect width="100" height="100" rx="28" fill={`url(#pmLogoGradient-${idSuffix})`} />
       <text 
         x="50%" 
         y="50%" 
@@ -109,7 +109,7 @@ const AppContent: React.FC<{
     <div className="flex flex-col min-h-screen md:flex-row bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
       <nav className="hidden md:flex flex-col w-64 lg:w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 h-screen sticky top-0 z-50 transition-all">
         <div className="p-8 flex items-center gap-3">
-          <PayMomentLogo className="w-10 h-10" />
+          <PayMomentLogo className="w-10 h-10" idSuffix="sidebar" />
           <h1 className="text-2xl font-black bg-gradient-to-r from-blue-700 to-purple-600 bg-clip-text text-transparent italic tracking-tighter">
             PayMoment
           </h1>
@@ -146,7 +146,7 @@ const AppContent: React.FC<{
       <main className="flex-1 min-h-screen flex flex-col">
         <header className="md:hidden flex items-center justify-between p-5 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 transition-colors">
            <div className="flex items-center gap-2">
-              <PayMomentLogo className="w-8 h-8" />
+              <PayMomentLogo className="w-8 h-8" idSuffix="header" />
               <h1 className="text-xl font-black bg-gradient-to-r from-blue-700 to-purple-600 bg-clip-text text-transparent italic tracking-tighter">PayMoment</h1>
            </div>
            <NavLink to="/profile" className="tap-scale">
