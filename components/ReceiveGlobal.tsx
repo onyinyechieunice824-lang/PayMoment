@@ -17,7 +17,7 @@ const ACCOUNTS = [
     theme: 'blue',
     details: [
       { label: 'Bank Name', value: 'Evolve Bank & Trust' },
-      { label: 'Account Holder', value: 'Tobi Adebayor' },
+      { label: 'Account Holder', value: 'Agua Ebubechukwu Samuel' },
       { label: 'Account Number', value: '9876543210' },
       { label: 'Routing Number', value: '123456789' },
       { label: 'Swift Code', value: 'EVOLUS33XXX' },
@@ -31,7 +31,7 @@ const ACCOUNTS = [
     theme: 'purple',
     details: [
       { label: 'Bank Name', value: 'ClearBank Ltd' },
-      { label: 'Account Holder', value: 'Tobi Adebayor' },
+      { label: 'Account Holder', value: 'Agua Ebubechukwu Samuel' },
       { label: 'Account Number', value: '00112233' },
       { label: 'Sort Code', value: '11-22-33' },
       { label: 'IBAN', value: 'GB00CLR112233445566' }
@@ -203,7 +203,6 @@ const ReceiveGlobal: React.FC<ReceiveGlobalProps> = ({ user, setUser, notify }) 
                           <div className="flex justify-between items-center mb-1.5 px-1">
                             <label className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{detail.label}</label>
                           </div>
-                          {/* CRITICAL FIX: Changed group-hover/item:bg-white to context-aware dark hover color */}
                           <div className="text-sm font-black text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800/80 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 flex items-center justify-between transition-all group-hover/item:border-blue-500 group-hover/item:bg-white dark:group-hover/item:bg-slate-800 shadow-sm">
                             <span className="truncate pr-4 leading-none tabular-nums">{detail.value}</span>
                             <span className="text-slate-400 group-hover/item:text-blue-500 transition-colors">📋</span>

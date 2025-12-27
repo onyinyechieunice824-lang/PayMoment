@@ -1,8 +1,13 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { User } from '../types';
 
-const QRCode: React.FC = () => {
+interface QRCodeProps {
+  user: User;
+}
+
+const QRCode: React.FC<QRCodeProps> = ({ user }) => {
   const navigate = useNavigate();
   const [tab, setTab] = useState<'mine' | 'scan'>('mine');
 
@@ -54,8 +59,8 @@ const QRCode: React.FC = () => {
                </div>
             </div>
             <div className="text-center space-y-1">
-               <p className="font-black text-xl text-slate-900 dark:text-white leading-none">Tobi Adebayor</p>
-               <p className="text-[10px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-[0.2em] pt-1">ID: @tobi_pay</p>
+               <p className="font-black text-xl text-slate-900 dark:text-white leading-none">{user.name || 'Agua Ebubechukwu Samuel'}</p>
+               <p className="text-[10px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-[0.2em] pt-1">ID: @{user.payMomentId || 'agua_pay'}</p>
             </div>
           </div>
         ) : (

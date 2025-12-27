@@ -28,7 +28,7 @@ export const analyzeFinances = async (query: string, transactions: Transaction[]
     NEW FEATURE INFO:
     - Users can now send money to China (Alipay/WeChat), USA, UK, EU, and Canada via "Global Wire".
     - Users have virtual international bank accounts (USD, GBP, EUR) to receive money from anywhere.
-    - Peer-to-peer transfers are done using "PayMoment ID" (e.g., @tobi_pay).
+    - Peer-to-peer transfers are done using "PayMoment ID" (e.g., @ebube_pay).
     - Exchange rates are real-time and competitive.
     
     Keep responses concise, friendly, and helpful. Use Nigerian context where appropriate (e.g., mention "Naira" or "NGN").

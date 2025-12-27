@@ -47,22 +47,20 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
 
   const getRecipientAccount = (tx: Transaction) => {
     if (tx.type === 'credit') return user.accountNumber;
-    // Extract 10-digit account number from title if present
     const match = tx.title.match(/\d{10}/);
-    return match ? match[0] : 'PM-DIRECT-INTERNAL';
+    return match ? match[0] : 'PM-INT-SETTLE';
   };
 
   const getSenderName = (tx: Transaction) => {
     if (tx.type === 'debit') return user.name;
-    // For credits, the sender is usually the source in the title
     if (tx.title.includes('from')) return tx.title.split('from ')[1];
-    return tx.title || 'System Payment';
+    return tx.title || 'System Pay';
   };
 
   const generateReceiptCanvas = async (tx: Transaction) => {
     const canvas = document.createElement('canvas');
     canvas.width = 800;
-    canvas.height = 1200; // Increased height for more rows
+    canvas.height = 1200; 
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
@@ -169,24 +167,6 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
     }
   };
 
-  const handleReportWrongTransfer = () => {
-    if (!selectedTx) return;
-    setResolutionStep('processing');
-    
-    setTimeout(() => {
-      if (selectedTx.type === 'debit') {
-        setUser(prev => ({
-          ...prev,
-          transactions: prev.transactions.map(t => 
-            t.id === selectedTx.id ? { ...t, status: 'recovery_active' as const, isWrongTransfer: true } : t
-          )
-        }));
-        setResolutionStep('done');
-        notify("Case submitted to resolution engine.", "info");
-      }
-    }, 2500);
-  };
-
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-20">
       {/* Header & Controls */}
@@ -218,7 +198,7 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
           </div>
         </div>
 
-        {/* Date Filter Bar - Fixed to grid-cols-2 for side-by-side layout on mobile */}
+        {/* Date Filter Bar */}
         <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-xl flex flex-col items-stretch gap-5 transition-all">
           <div className="w-full grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -301,39 +281,39 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
       {/* RECEIPT MODAL & PRINT CONTAINER */}
       {selectedTx && (
         <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center p-0 md:p-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
-           <div className="bg-white dark:bg-slate-900 rounded-t-[3.5rem] md:rounded-[4rem] w-full max-w-lg p-8 md:p-12 shadow-2xl animate-in slide-in-from-bottom-12 duration-500 border-t border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto no-scrollbar">
+           <div className="bg-white dark:bg-slate-900 rounded-t-[3.5rem] md:rounded-[4rem] w-full max-w-lg p-6 md:p-12 shadow-2xl animate-in slide-in-from-bottom-12 duration-500 border-t border-slate-200 dark:border-slate-800 max-h-[95vh] overflow-y-auto no-scrollbar">
               
               {!isReporting ? (
                 <>
-                  <div className="no-print flex justify-between items-center mb-10">
-                    <h3 className="text-2xl font-black italic tracking-tighter text-slate-900 dark:text-white">Receipt View</h3>
+                  <div className="no-print flex justify-between items-center mb-6 md:mb-10">
+                    <h3 className="text-xl md:text-2xl font-black italic tracking-tighter text-slate-900 dark:text-white">Receipt View</h3>
                     <button onClick={() => setSelectedTx(null)} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:rotate-90 transition-transform">×</button>
                   </div>
 
-                  <div className="print-container bg-white dark:bg-slate-900 p-8 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-xl transition-colors">
-                    <div className="flex flex-col items-center text-center gap-4 mb-10 pb-8 border-b border-dashed border-slate-200 dark:border-slate-800">
-                        <PayMomentLogo className="w-20 h-20" idSuffix="receipt-logo" />
+                  <div className="print-container bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[2.5rem] md:rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-xl transition-colors">
+                    <div className="flex flex-col items-center text-center gap-4 mb-8 md:mb-10 pb-6 md:pb-8 border-b border-dashed border-slate-200 dark:border-slate-800">
+                        <PayMomentLogo className="w-16 h-16 md:w-20 md:h-20" idSuffix="receipt-logo" />
                         <div>
-                          <h4 className="text-4xl font-black tracking-tighter italic text-blue-700 dark:text-white leading-none">PayMoment</h4>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mt-2">Official Payment Record</p>
+                          <h4 className="text-3xl md:text-4xl font-black tracking-tighter italic text-blue-700 dark:text-white leading-none">PayMoment</h4>
+                          <p className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mt-2">Official Payment Record</p>
                         </div>
                     </div>
 
-                    <div className="bg-slate-50 dark:bg-slate-800/50 p-10 rounded-[2.5rem] flex flex-col items-center gap-2 border border-slate-100 dark:border-slate-800 transition-colors">
-                        <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Amount</p>
-                        <h5 className={`text-5xl font-black tabular-nums tracking-tighter ${selectedTx.type === 'credit' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
+                    <div className="bg-slate-50 dark:bg-slate-800/50 p-8 md:p-10 rounded-[2rem] md:rounded-[2.5rem] flex flex-col items-center gap-2 border border-slate-100 dark:border-slate-800 transition-colors">
+                        <p className="text-[9px] md:text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Amount</p>
+                        <h5 className={`text-4xl md:text-5xl font-black tabular-nums tracking-tighter ${selectedTx.type === 'credit' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
                           {selectedTx.type === 'credit' ? '+' : '-'}₦{selectedTx.amount.toLocaleString()}
                         </h5>
                     </div>
 
-                    <div className="space-y-6 px-4 py-10">
+                    <div className="space-y-4 md:space-y-6 px-2 md:px-4 py-8 md:py-10">
                         <ReceiptRow label="Sender Name" value={getSenderName(selectedTx)} />
-                        <ReceiptRow label="Recipient Account" value={getRecipientAccount(selectedTx)} valueClass="font-mono bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded" />
+                        <ReceiptRow label="Recipient Account" value={getRecipientAccount(selectedTx)} valueClass="font-mono bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded whitespace-nowrap" />
                         <ReceiptRow label="Description" value={selectedTx.title} />
-                        <ReceiptRow label="Narration / Remark" value={selectedTx.remark || 'N/A'} />
+                        <ReceiptRow label="Narration" value={selectedTx.remark || 'N/A'} />
                         <ReceiptRow label="Category" value={selectedTx.category} />
                         <ReceiptRow label="Time" value={selectedTx.timestamp} />
-                        <ReceiptRow label="Ref" value={`PM-${selectedTx.id.toUpperCase()}`} valueClass="font-mono text-[11px] bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded" />
+                        <ReceiptRow label="Ref" value={`PM-${selectedTx.id.toUpperCase()}`} valueClass="font-mono text-[10px] md:text-[11px] bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded whitespace-nowrap" />
                     </div>
 
                     <div className="hidden print:block pt-8 text-center border-t border-slate-100 mt-6">
@@ -449,9 +429,9 @@ const ShareButton = ({ icon, label, color, onClick, disabled }: any) => (
 );
 
 const ReceiptRow = ({ label, value, valueClass = "" }: { label: string, value: string, valueClass?: string }) => (
-  <div className="flex justify-between items-start gap-6">
-     <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest shrink-0 mt-0.5">{label}</span>
-     <span className={`text-xs md:text-sm font-bold text-slate-900 dark:text-white text-right break-all ${valueClass}`}>{value}</span>
+  <div className="flex flex-row justify-between items-start gap-4 py-0.5">
+     <span className="text-[8px] md:text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest shrink-0 w-24 md:w-32 mt-0.5 leading-tight">{label}</span>
+     <span className={`text-[10px] md:text-sm font-bold text-slate-900 dark:text-white text-right flex-1 break-words leading-tight ${valueClass}`}>{value}</span>
   </div>
 );
 

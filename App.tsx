@@ -78,7 +78,7 @@ export const UserAvatar = ({ user, className = "w-10 h-10", onClick }: { user: U
       <img src={user.profilePicture} alt={user.name} className="w-full h-full object-cover" />
     ) : (
       <div className="w-full h-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-black text-xs md:text-sm">
-        {user.name ? user.name.split(' ').map(n => n[0]).join('') : 'PM'}
+        {user.name ? user.name.split(' ').map(n => n[0]).join('') : 'AS'}
       </div>
     )}
   </div>
@@ -178,7 +178,7 @@ const AppContent: React.FC<{
             <Route path="/global-transfer" element={<InternationalTransfer notify={notify} user={user} setUser={setUser} />} />
             <Route path="/verification" element={<VerificationCenter user={user} setUser={setUser} notify={notify} />} />
             <Route path="/bills" element={<Bills notify={notify} processTransaction={processTransaction} />} />
-            <Route path="/qr" element={<QRCode />} />
+            <Route path="/qr" element={<QRCode user={user} />} />
             <Route path="/ai-assistant" element={<AIAssistant transactions={user.transactions} />} />
             <Route path="/cards" element={<VirtualCards user={user} setUser={setUser} processTransaction={processTransaction} />} />
             <Route path="/transactions" element={<Transactions transactions={user.transactions} user={user} setUser={setUser} notify={notify} />} />
@@ -312,9 +312,9 @@ const App: React.FC = () => {
     if (!user.name) {
       setUser({
         ...user,
-        name: 'Tobi Adebayor',
-        payMomentId: 'tobi_pay',
-        phoneNumber: '08012345678',
+        name: 'Agua Ebubechukwu Samuel',
+        payMomentId: 'agua_pay',
+        phoneNumber: '08123456789',
         accountNumber: '1234567890',
         balances: { 'NGN': 125000, 'USD': 45.50, 'GBP': 0 },
         transactions: [
@@ -349,7 +349,7 @@ const App: React.FC = () => {
     return <BiometricOverlay onAuthenticated={() => {
         setIsLoggedIn(true);
         localStorage.setItem(LOGIN_KEY, 'true');
-    }} isDarkMode={isDarkMode} userName={user.name || 'User'} user={user} />;
+    }} isDarkMode={isDarkMode} userName={user.name || 'Agua Ebubechukwu Samuel'} user={user} />;
   }
 
   return (
