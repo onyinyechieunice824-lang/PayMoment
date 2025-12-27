@@ -296,9 +296,9 @@ const App: React.FC = () => {
       phoneNumber: phone,
       payMomentId: id,
       accountNumber: phone.slice(-10),
-      balances: { 'NGN': 5000, 'USD': 0, 'GBP': 0 },
+      balances: { 'NGN': 1000000, 'USD': 0, 'GBP': 0 },
       transactions: [{
-        id: 'bonus', type: 'credit', amount: 5000, title: 'Welcome Bonus', category: 'Reward', timestamp: new Date().toLocaleString(), status: 'completed'
+        id: 'bonus', type: 'credit', amount: 1000000, title: 'Welcome Bonus', category: 'Reward', timestamp: new Date().toLocaleString(), status: 'completed'
       }]
     };
     setUser(newUser);
@@ -316,9 +316,9 @@ const App: React.FC = () => {
         payMomentId: 'agua_pay',
         phoneNumber: '08123456789',
         accountNumber: '1234567890',
-        balances: { 'NGN': 125000, 'USD': 45.50, 'GBP': 0 },
+        balances: { 'NGN': 1000000, 'USD': 45.50, 'GBP': 0 },
         transactions: [
-           { id: '1', type: 'credit', amount: 125000, title: 'Mock Account Sync', category: 'System', timestamp: new Date().toLocaleString(), status: 'completed' }
+           { id: '1', type: 'credit', amount: 1000000, title: 'Mock Account Sync', category: 'System', timestamp: new Date().toLocaleString(), status: 'completed' }
         ]
       });
     }

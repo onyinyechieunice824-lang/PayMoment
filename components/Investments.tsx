@@ -23,10 +23,27 @@ const Investments: React.FC<InvestmentsProps> = ({ user, setUser, notify, proces
   const [amount, setAmount] = useState('');
   const [isInvesting, setIsInvesting] = useState(false);
 
+  // Accounting-Style Formatter
+  const handleAmountChange = (val: string) => {
+    let clean = val.replace(/[^0-9.]/g, '');
+    const parts = clean.split('.');
+    if (parts.length > 2) clean = parts[0] + '.' + parts.slice(1).join('');
+    const integerPart = parts[0];
+    const decimalPart = parts[1];
+    const formattedInt = integerPart ? parseInt(integerPart, 10).toLocaleString() : '';
+    let result = formattedInt;
+    if (clean.includes('.')) {
+      result += '.' + (decimalPart !== undefined ? decimalPart.slice(0, 2) : '');
+    }
+    setAmount(result);
+  };
+
+  const getRawAmount = () => parseFloat(amount.replace(/,/g, '')) || 0;
+
   const handleInvest = () => {
-    const val = parseFloat(amount);
+    const val = getRawAmount();
     if (!val || val < 1000) {
-      notify("Minimum investment is ₦1,000", "error");
+      notify("Minimum investment is ₦1,000.00", "error");
       return;
     }
     if (val > user.balances['NGN']) {
@@ -65,19 +82,16 @@ const Investments: React.FC<InvestmentsProps> = ({ user, setUser, notify, proces
       setIsInvesting(false);
       setSelectedAsset(null);
       setAmount('');
-      notify(`Successfully invested ₦${val.toLocaleString()} in ${selectedAsset.name}!`, 'success');
+      notify(`Successfully invested ₦${val.toLocaleString(undefined, {minimumFractionDigits: 2})} in ${selectedAsset.name}!`, 'success');
     }, 2000);
   };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-10">
       <button onClick={() => navigate(-1)} className="group flex items-center gap-2 text-slate-500 hover:text-blue-600 transition-colors tap-scale">
-        <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7"/></svg>
-        </div>
+        <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7"/></svg></div>
         <span className="text-[10px] font-black uppercase tracking-widest">Back</span>
       </button>
-
       <div className="bg-gradient-to-br from-emerald-800 to-emerald-600 rounded-[3rem] p-10 md:p-14 text-white shadow-2xl relative overflow-hidden">
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
            <div className="text-center md:text-left">
@@ -86,14 +100,12 @@ const Investments: React.FC<InvestmentsProps> = ({ user, setUser, notify, proces
            </div>
            <div className="text-center md:text-right">
               <p className="text-[10px] font-black uppercase tracking-widest text-emerald-200 mb-1">Portfolio Value</p>
-              <h3 className="text-4xl font-black tabular-nums">₦{(user.investments?.reduce((acc, curr) => acc + curr.currentValue, 0) || 0).toLocaleString()}</h3>
+              <h3 className="text-4xl font-black tabular-nums">₦{(user.investments?.reduce((acc, curr) => acc + curr.currentValue, 0) || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</h3>
            </div>
         </div>
         <div className="absolute -left-12 -bottom-12 w-64 h-64 bg-white/10 rounded-full blur-[80px]"></div>
       </div>
-
       <div className="grid md:grid-cols-2 gap-8">
-        {/* Marketplace */}
         <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-8 md:p-10 border border-slate-200 dark:border-slate-800 shadow-sm space-y-8">
            <h3 className="text-2xl font-black italic tracking-tight text-slate-900 dark:text-white">Assets Marketplace</h3>
            <div className="grid gap-4">
@@ -107,19 +119,15 @@ const Investments: React.FC<InvestmentsProps> = ({ user, setUser, notify, proces
                       </div>
                    </div>
                    <div className="text-right">
-                      <p className="font-black text-slate-900 dark:text-white tabular-nums">${asset.price.toLocaleString()}</p>
-                      <p className={`text-[10px] font-black uppercase ${asset.change >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                         {asset.change >= 0 ? '+' : ''}{asset.change}%
-                      </p>
+                      <p className="font-black text-slate-900 dark:text-white tabular-nums">${asset.price.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                      <p className={`text-[10px] font-black uppercase ${asset.change >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>{asset.change >= 0 ? '+' : ''}{asset.change}%</p>
                    </div>
                 </div>
               ))}
            </div>
         </div>
-
-        {/* My Investments */}
         <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-8 md:p-10 border border-slate-200 dark:border-slate-800 shadow-sm space-y-8">
-           <h3 className="text-2xl font-black italic tracking-tight text-slate-900 dark:text-white">My Holdings</h3>
+           <h3 className="text-2xl font-black italic tracking-tight text-slate-900 dark:text-white">Holdings</h3>
            {(!user.investments || user.investments.length === 0) ? (
              <div className="p-10 text-center text-slate-400 font-bold italic">No investments yet.</div>
            ) : (
@@ -130,7 +138,7 @@ const Investments: React.FC<InvestmentsProps> = ({ user, setUser, notify, proces
                         <span className="text-3xl">{inv.assetIcon}</span>
                         <div>
                            <p className="font-black text-slate-900 dark:text-white leading-none mb-1">{inv.assetName}</p>
-                           <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Holdings: ₦{inv.currentValue.toLocaleString()}</p>
+                           <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">₦{inv.currentValue.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
                         </div>
                      </div>
                      <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1 rounded-xl">+12.4%</span>
@@ -140,8 +148,6 @@ const Investments: React.FC<InvestmentsProps> = ({ user, setUser, notify, proces
            )}
         </div>
       </div>
-
-      {/* Investment Modal */}
       {selectedAsset && (
         <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-0 md:p-6 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-md animate-in fade-in">
            <div className="bg-white dark:bg-slate-900 rounded-t-[3rem] md:rounded-[3.5rem] w-full max-w-md p-8 md:p-12 shadow-2xl animate-in slide-in-from-bottom-10">
@@ -155,29 +161,15 @@ const Investments: React.FC<InvestmentsProps> = ({ user, setUser, notify, proces
                  </div>
                  <button onClick={() => setSelectedAsset(null)} className="text-3xl font-light">×</button>
               </div>
-
               <div className="space-y-6">
                  <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Amount to Invest (NGN)</label>
                     <div className="relative">
                        <span className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-slate-400 text-xl">₦</span>
-                       <input 
-                         type="number" 
-                         value={amount}
-                         onChange={(e) => setAmount(e.target.value)}
-                         placeholder="Min 1,000"
-                         className="w-full p-5 pl-12 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl outline-none focus:border-emerald-600 font-black text-2xl dark:text-white tabular-nums"
-                       />
+                       <input type="text" value={amount} onChange={(e) => handleAmountChange(e.target.value)} placeholder="0.00" className="w-full p-5 pl-12 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl outline-none focus:border-emerald-600 font-black text-2xl dark:text-white tabular-nums" />
                     </div>
                  </div>
-
-                 <button 
-                  onClick={handleInvest}
-                  disabled={isInvesting || !amount}
-                  className="w-full py-6 bg-emerald-600 text-white rounded-[2rem] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-                 >
-                   {isInvesting ? 'Processing Order...' : 'Buy Fractional Shares'}
-                 </button>
+                 <button onClick={handleInvest} disabled={isInvesting || !amount} className="w-full py-6 bg-emerald-600 text-white rounded-[2rem] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50">{isInvesting ? 'Processing Order...' : 'Buy Fractional Shares'}</button>
               </div>
            </div>
         </div>

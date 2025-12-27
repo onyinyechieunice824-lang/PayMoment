@@ -31,6 +31,25 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
   const [pin, setPin] = useState('');
   const [lastTxId, setLastTxId] = useState('');
 
+  // Enhanced Formatter for 1,000.00
+  const handleAmountChange = (val: string) => {
+    let clean = val.replace(/[^0-9.]/g, '');
+    const parts = clean.split('.');
+    if (parts.length > 2) clean = parts[0] + '.' + parts.slice(1).join('');
+    
+    const integerPart = parts[0];
+    const decimalPart = parts[1];
+
+    const formattedInt = integerPart ? parseInt(integerPart, 10).toLocaleString() : '';
+    let result = formattedInt;
+    if (clean.includes('.')) {
+      result += '.' + (decimalPart !== undefined ? decimalPart.slice(0, 2) : '');
+    }
+    setAmount(result);
+  };
+
+  const getRawAmount = () => parseFloat(amount.replace(/,/g, '')) || 0;
+
   // Get recipient account for receipt logic
   const currentRecipientAcc = type === 'bank' ? accountNumber : (payMomentMethod === 'account' ? payMomentValue : 'PayMoment ID');
 
@@ -74,34 +93,24 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
-    // Background
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, 800, 1200);
-
-    // Header
     ctx.fillStyle = '#1E3A8A';
     ctx.fillRect(0, 0, 800, 180);
-
     ctx.fillStyle = '#ffffff';
     ctx.font = 'italic 900 60px Inter, sans-serif';
     ctx.fillText('PayMoment', 60, 110);
-
     ctx.font = 'bold 16px Inter, sans-serif';
     ctx.fillText('OFFICIAL TRANSACTION RECEIPT', 60, 145);
-
-    // Amount Body
     ctx.fillStyle = '#f1f5f9';
     ctx.fillRect(60, 220, 680, 200);
-
     ctx.fillStyle = '#64748b';
     ctx.font = 'bold 20px Inter, sans-serif';
     ctx.fillText('AMOUNT TRANSFERRED', 90, 270);
-
     ctx.fillStyle = '#0f172a';
     ctx.font = '900 70px Inter, sans-serif';
-    ctx.fillText(`NGN ${Number(amount).toLocaleString()}`, 90, 360);
+    ctx.fillText(`NGN ${amount}`, 90, 360);
 
-    // Details Grid
     let y = 500;
     const drawRow = (label: string, value: string) => {
       ctx.fillStyle = '#64748b';
@@ -121,37 +130,29 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
     drawRow('Reference', `PM-${lastTxId.toUpperCase()}`);
     drawRow('Date', new Date().toLocaleString());
     drawRow('Status', 'SUCCESSFUL');
-
-    // Footer
     ctx.fillStyle = '#1E3A8A';
     ctx.fillRect(60, 1140, 680, 4);
     ctx.fillStyle = '#94a3b8';
     ctx.font = 'italic bold 18px Inter, sans-serif';
     ctx.fillText('Thank you for choosing PayMoment. Secure, Fast, Global.', 60, 1180);
-
     return canvas.toDataURL('image/png');
   };
 
   const handleShare = async (mode: 'link' | 'image' | 'pdf') => {
-    const summary = `PayMoment Receipt\nSender: ${user.name}\nTo: ${verifiedName}\nAcc: ${currentRecipientAcc}\nAmount: ₦${Number(amount).toLocaleString()}\nRemark: ${remark}\nRef: PM-${lastTxId.toUpperCase()}`;
-    
+    const summary = `PayMoment Receipt\nSender: ${user.name}\nTo: ${verifiedName}\nAcc: ${currentRecipientAcc}\nAmount: ₦${amount}\nRemark: ${remark}\nRef: PM-${lastTxId.toUpperCase()}`;
     if (mode === 'pdf') {
       window.print();
       return;
     }
-
     setSharingStatus('generating');
-    
     if (mode === 'image') {
       const dataUrl = await generateReceiptCanvas();
       if (dataUrl) {
         const blob = await (await fetch(dataUrl)).blob();
         const file = new File([blob], `PayMoment-Receipt-${lastTxId}.png`, { type: 'image/png' });
-        
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          try {
-            await navigator.share({ files: [file], title: 'PayMoment Receipt' });
-          } catch (e) {
+          try { await navigator.share({ files: [file], title: 'PayMoment Receipt' }); } 
+          catch {
             const link = document.createElement('a');
             link.download = `PayMoment-Receipt-${lastTxId}.png`;
             link.href = dataUrl;
@@ -168,12 +169,8 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
       notify("Image generated successfully", "success");
     } else if (mode === 'link') {
       if (navigator.share) {
-        try {
-          await navigator.share({ title: 'PayMoment Receipt', text: summary, url: window.location.origin });
-        } catch {
-          navigator.clipboard.writeText(summary);
-          notify("Details copied to clipboard", "info");
-        }
+        try { await navigator.share({ title: 'PayMoment Receipt', text: summary, url: window.location.origin }); } 
+        catch { navigator.clipboard.writeText(summary); notify("Details copied to clipboard", "info"); }
       } else {
         navigator.clipboard.writeText(summary);
         notify("Details copied to clipboard", "info");
@@ -183,7 +180,7 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
   };
 
   const handleTransferRequest = () => {
-    const numericAmount = parseFloat(amount);
+    const numericAmount = getRawAmount();
     if (!amount || isNaN(numericAmount) || numericAmount <= 0) {
       notify("Please enter a valid amount", "error");
       return;
@@ -199,9 +196,7 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
     if (pin.length < 4) {
       const newPin = pin + num;
       setPin(newPin);
-      if (newPin.length === 4) {
-        finalizeTransfer();
-      }
+      if (newPin.length === 4) { finalizeTransfer(); }
     }
   };
 
@@ -214,10 +209,9 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
   };
 
   const finalizeTransfer = () => {
-    const numericAmount = parseFloat(amount);
+    const numericAmount = getRawAmount();
     const txId = Math.random().toString(36).substr(2, 9);
     setLastTxId(txId);
-
     const tx: Transaction = {
       id: txId,
       type: 'debit',
@@ -228,25 +222,20 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
       status: 'completed',
       remark: remark 
     };
-
     processTransaction(tx, 'NGN');
     setStep('success');
-    notify(`₦${numericAmount.toLocaleString()} sent successfully!`, 'success');
+    notify(`₦${numericAmount.toLocaleString(undefined, {minimumFractionDigits: 2})} sent successfully!`, 'success');
   };
 
   if (step === 'success') {
     return (
       <div className="flex flex-col items-center justify-center space-y-8 py-12 animate-in zoom-in-95 duration-500">
-        <div className="no-print w-28 h-28 bg-emerald-500 dark:bg-emerald-600 rounded-full flex items-center justify-center text-5xl shadow-2xl shadow-emerald-500/40 animate-bounce">
-          ✅
-        </div>
+        <div className="no-print w-28 h-28 bg-emerald-500 dark:bg-emerald-600 rounded-full flex items-center justify-center text-5xl shadow-2xl shadow-emerald-500/40 animate-bounce">✅</div>
         <div className="text-center space-y-2 no-print">
           <h2 className="text-3xl font-black text-slate-900 dark:text-white transition-colors tracking-tight italic">Transfer Successful!</h2>
-          <p className="text-slate-600 dark:text-slate-400 font-bold text-lg">₦{Number(amount).toLocaleString()}</p>
+          <p className="text-slate-600 dark:text-slate-400 font-bold text-lg">₦{amount}</p>
           <p className="text-slate-500 dark:text-slate-500 text-sm font-medium">Recipient: {verifiedName || 'the recipient'}.</p>
         </div>
-
-        {/* PRINTABLE RECEIPT CONTAINER - MOBILE OPTIMIZED LAYOUT */}
         <div className="print-container bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[2.5rem] border-2 border-slate-100 dark:border-slate-800 shadow-xl w-full max-w-sm space-y-8 transition-colors">
            <div className="flex flex-col items-center gap-4 pb-6 border-b border-dashed border-slate-200 dark:border-slate-700">
               <PayMomentLogo className="w-16 h-16" idSuffix="success-receipt" />
@@ -255,55 +244,26 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
                  <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Transaction Authorization Token</p>
               </div>
            </div>
-           
            <div className="space-y-3 md:space-y-4">
               <ReceiptDetailRow label="Sender" value={user.name} />
               <ReceiptDetailRow label="Recipient Acc" value={currentRecipientAcc} isMono />
               <ReceiptDetailRow label="Recipient" value={verifiedName} />
-              <ReceiptDetailRow label="Amount" value={`₦${Number(amount).toLocaleString()}`} />
+              <ReceiptDetailRow label="Amount" value={`₦${amount}`} />
               <ReceiptDetailRow label="Remark" value={remark || 'None'} />
               <ReceiptDetailRow label="Ref" value={`PM-${lastTxId.toUpperCase()}`} isMono />
               <ReceiptDetailRow label="Status" value="SUCCESSFUL" />
               <ReceiptDetailRow label="Time" value={new Date().toLocaleString()} />
            </div>
-           
            <div className="hidden print:block pt-8 text-center border-t border-slate-100 mt-6 pt-6">
               <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Verified digital document • Generated by PayMoment App</p>
            </div>
         </div>
-
         <div className="no-print w-full max-w-sm space-y-6 pt-4 px-4">
           <div className="grid grid-cols-3 gap-4">
-             <ShareActionButton 
-               icon="🔗" 
-               label="Link" 
-               color="bg-blue-600" 
-               onClick={() => handleShare('link')} 
-               disabled={sharingStatus === 'generating'} 
-             />
-             <ShareActionButton 
-               icon="🖼️" 
-               label="Image" 
-               color="bg-purple-600" 
-               onClick={() => handleShare('image')} 
-               disabled={sharingStatus === 'generating'} 
-             />
-             <ShareActionButton 
-               icon="📄" 
-               label="PDF" 
-               color="bg-emerald-600" 
-               onClick={() => handleShare('pdf')} 
-               disabled={sharingStatus === 'generating'} 
-             />
+             <ShareActionButton icon="🔗" label="Link" color="bg-blue-600" onClick={() => handleShare('link')} disabled={sharingStatus === 'generating'} />
+             <ShareActionButton icon="🖼️" label="Image" color="bg-purple-600" onClick={() => handleShare('image')} disabled={sharingStatus === 'generating'} />
+             <ShareActionButton icon="📄" label="PDF" color="bg-emerald-600" onClick={() => handleShare('pdf')} disabled={sharingStatus === 'generating'} />
           </div>
-
-          {sharingStatus === 'generating' && (
-            <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center gap-3 animate-pulse">
-               <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-               <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Synthesizing Pixels...</span>
-            </div>
-          )}
-
           <button onClick={() => navigate('/')} className="w-full text-blue-600 dark:text-blue-400 font-black uppercase tracking-widest text-[11px] tap-scale underline underline-offset-4 decoration-2 text-center py-4">Return to Dashboard</button>
         </div>
       </div>
@@ -319,9 +279,8 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
               <span className="text-4xl">{authMode === 'pin' ? '🔐' : '🧬'}</span>
             </div>
             <h2 className="text-3xl font-black text-white italic tracking-tighter">Security Check</h2>
-            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Authorize ₦{Number(amount).toLocaleString()}</p>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Authorize ₦{amount}</p>
           </div>
-
           {authMode === 'pin' ? (
             <div className="space-y-12">
               <div className="flex justify-center gap-6">
@@ -359,20 +318,9 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{authStatus === 'verifying' ? 'Scanning Fingerprint...' : 'Tap icon to use Touch ID'}</p>
             </div>
           )}
-
           <div className="flex flex-col gap-6 pt-10 text-center">
-            <button 
-              onClick={() => { setAuthMode(authMode === 'pin' ? 'biometric' : 'pin'); setPin(''); }}
-              className="text-[10px] font-black text-blue-400 uppercase tracking-widest hover:text-blue-300 transition-colors"
-            >
-              Switch to {authMode === 'pin' ? 'Fingerprint' : 'PIN'}
-            </button>
-            <button 
-              onClick={() => setStep('confirm')}
-              className="text-[10px] font-black text-rose-500 uppercase tracking-widest"
-            >
-              Cancel Authorization
-            </button>
+            <button onClick={() => { setAuthMode(authMode === 'pin' ? 'biometric' : 'pin'); setPin(''); }} className="text-[10px] font-black text-blue-400 uppercase tracking-widest hover:text-blue-300 transition-colors">Switch to {authMode === 'pin' ? 'Fingerprint' : 'PIN'}</button>
+            <button onClick={() => setStep('confirm')} className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Cancel Authorization</button>
           </div>
         </div>
       </div>
@@ -397,18 +345,8 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
       </div>
 
       <div className="bg-slate-200 dark:bg-slate-800 p-2 rounded-[2.5rem] flex border-2 border-slate-300 dark:border-slate-700 shadow-md transition-colors overflow-hidden">
-        <button 
-          onClick={() => { setType('bank'); setVerifiedName(''); }} 
-          className={`flex-1 py-5 rounded-[2rem] text-[12px] font-black uppercase tracking-widest transition-all tap-scale ${type === 'bank' ? 'bg-blue-600 text-white shadow-2xl shadow-blue-500/50' : 'text-slate-500 dark:text-slate-400 hover:text-blue-600'}`}
-        >
-          Other Bank
-        </button>
-        <button 
-          onClick={() => { setType('paymoment'); setVerifiedName(''); }} 
-          className={`flex-1 py-5 rounded-[2rem] text-[12px] font-black uppercase tracking-widest transition-all tap-scale ${type === 'paymoment' ? 'bg-purple-600 text-white shadow-2xl shadow-purple-500/50' : 'text-slate-500 dark:text-slate-400 hover:text-purple-600'}`}
-        >
-          PayMoment User
-        </button>
+        <button onClick={() => { setType('bank'); setVerifiedName(''); }} className={`flex-1 py-5 rounded-[2rem] text-[12px] font-black uppercase tracking-widest transition-all tap-scale ${type === 'bank' ? 'bg-blue-600 text-white shadow-2xl shadow-blue-500/50' : 'text-slate-500 dark:text-slate-400 hover:text-blue-600'}`}>Other Bank</button>
+        <button onClick={() => { setType('paymoment'); setVerifiedName(''); }} className={`flex-1 py-5 rounded-[2rem] text-[12px] font-black uppercase tracking-widest transition-all tap-scale ${type === 'paymoment' ? 'bg-purple-600 text-white shadow-2xl shadow-purple-500/50' : 'text-slate-500 dark:text-slate-400 hover:text-purple-600'}`}>PayMoment User</button>
       </div>
 
       <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-8 md:p-12 border-2 border-slate-300 dark:border-slate-700 shadow-2xl space-y-10 transition-colors">
@@ -417,11 +355,7 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
             <div className="space-y-3">
               <label className="text-[11px] font-black text-slate-950 dark:text-slate-200 uppercase tracking-widest px-2">1. Choose Recipient Bank</label>
               <div className="relative group">
-                <select 
-                  value={bank} 
-                  onChange={(e) => setBank(e.target.value)} 
-                  className="w-full p-6 bg-white dark:bg-slate-800 border-2 border-slate-400 dark:border-slate-600 focus:border-blue-600 rounded-3xl outline-none font-black text-base text-slate-950 dark:text-white transition-all appearance-none shadow-sm group-hover:border-slate-500"
-                >
+                <select value={bank} onChange={(e) => setBank(e.target.value)} className="w-full p-6 bg-white dark:bg-slate-800 border-2 border-slate-400 dark:border-slate-600 focus:border-blue-600 rounded-3xl outline-none font-black text-base text-slate-950 dark:text-white transition-all appearance-none shadow-sm group-hover:border-slate-50">
                   <option value="">Select Bank...</option>
                   {NIGERIAN_BANKS.map(b => <option key={b} value={b}>{b}</option>)}
                 </select>
@@ -432,49 +366,26 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
             </div>
             <div className="space-y-3">
               <label className="text-[11px] font-black text-slate-950 dark:text-slate-200 uppercase tracking-widest px-2">2. Account Number</label>
-              <input 
-                type="text" 
-                maxLength={10} 
-                value={accountNumber} 
-                onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))} 
-                placeholder="0123456789" 
-                className="w-full p-6 bg-white dark:bg-slate-800 border-2 border-slate-400 dark:border-slate-600 focus:border-blue-600 rounded-3xl outline-none font-black text-2xl tracking-[0.2em] tabular-nums text-slate-950 dark:text-white transition-all shadow-sm placeholder:text-slate-300 dark:placeholder:text-slate-700" 
-              />
+              <input type="text" maxLength={10} value={accountNumber} onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))} placeholder="0123456789" className="w-full p-6 bg-white dark:bg-slate-800 border-2 border-slate-400 dark:border-slate-600 focus:border-blue-600 rounded-3xl outline-none font-black text-2xl tracking-[0.2em] tabular-nums text-slate-950 dark:text-white transition-all shadow-sm placeholder:text-slate-300 dark:placeholder:text-slate-700" />
             </div>
           </div>
         ) : (
           <div className="space-y-10">
             <div className="grid grid-cols-2 gap-6">
-               <button 
-                onClick={() => { setPayMomentMethod('username'); setPayMomentValue(''); setVerifiedName(''); }}
-                className={`p-6 rounded-[2.5rem] border-4 transition-all flex flex-col items-center gap-3 tap-scale ${payMomentMethod === 'username' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-600 shadow-md' : 'bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-800'}`}
-               >
+               <button onClick={() => { setPayMomentMethod('username'); setPayMomentValue(''); setVerifiedName(''); }} className={`p-6 rounded-[2.5rem] border-4 transition-all flex flex-col items-center gap-3 tap-scale ${payMomentMethod === 'username' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-600 shadow-md' : 'bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-800'}`}>
                  <span className="text-4xl">👤</span>
                  <span className={`font-black text-[11px] uppercase tracking-widest ${payMomentMethod === 'username' ? 'text-purple-700' : 'text-slate-600'}`}>Pay ID (@ID)</span>
                </button>
-               <button 
-                onClick={() => { setPayMomentMethod('account'); setPayMomentValue(''); setVerifiedName(''); }}
-                className={`p-6 rounded-[2.5rem] border-4 transition-all flex flex-col items-center gap-3 tap-scale ${payMomentMethod === 'account' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-600 shadow-md' : 'bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-800'}`}
-               >
+               <button onClick={() => { setPayMomentMethod('account'); setPayMomentValue(''); setVerifiedName(''); }} className={`p-6 rounded-[2.5rem] border-4 transition-all flex flex-col items-center gap-3 tap-scale ${payMomentMethod === 'account' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-600 shadow-md' : 'bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-800'}`}>
                  <span className="text-3xl">🔢</span>
                  <span className={`font-black text-[11px] uppercase tracking-widest ${payMomentMethod === 'account' ? 'text-purple-700' : 'text-slate-600'}`}>PM Account</span>
                </button>
             </div>
-
             <div className="space-y-3">
-              <label className="text-[11px] font-black text-slate-950 dark:text-slate-200 uppercase tracking-widest px-2">
-                Recipient {payMomentMethod === 'username' ? 'Pay ID' : 'Account'}
-              </label>
+              <label className="text-[11px] font-black text-slate-950 dark:text-slate-200 uppercase tracking-widest px-2">Recipient {payMomentMethod === 'username' ? 'Pay ID' : 'Account'}</label>
               <div className="relative group">
                 {payMomentMethod === 'username' && <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-slate-600 text-2xl group-focus-within:text-purple-600 transition-colors">@</span>}
-                <input 
-                  type="text" 
-                  value={payMomentValue}
-                  maxLength={payMomentMethod === 'account' ? 10 : 20}
-                  onChange={(e) => setPayMomentValue(payMomentMethod === 'account' ? e.target.value.replace(/\D/g, '') : e.target.value.toLowerCase())}
-                  placeholder={payMomentMethod === 'username' ? 'username' : '0123456789'} 
-                  className={`w-full p-6 ${payMomentMethod === 'username' ? 'pl-12' : 'pl-6'} bg-white dark:bg-slate-800 border-2 border-slate-400 dark:border-slate-600 focus:border-purple-600 rounded-3xl outline-none font-black text-2xl text-slate-950 dark:text-white transition-all shadow-sm placeholder:text-slate-300 dark:placeholder:text-slate-700`} 
-                />
+                <input type="text" value={payMomentValue} maxLength={payMomentMethod === 'account' ? 10 : 20} onChange={(e) => setPayMomentValue(payMomentMethod === 'account' ? e.target.value.replace(/\D/g, '') : e.target.value.toLowerCase())} placeholder={payMomentMethod === 'username' ? 'username' : '0123456789'} className={`w-full p-6 ${payMomentMethod === 'username' ? 'pl-12' : 'pl-6'} bg-white dark:bg-slate-800 border-2 border-slate-400 dark:border-slate-600 focus:border-purple-600 rounded-3xl outline-none font-black text-2xl text-slate-950 dark:text-white transition-all shadow-sm placeholder:text-slate-300 dark:placeholder:text-slate-700`} />
               </div>
             </div>
           </div>
@@ -487,7 +398,6 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
                <span className="text-[12px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-200">Security Lookup Active...</span>
             </div>
           )}
-
           {verifiedName && (
             <div className="p-8 bg-gradient-to-r from-emerald-500/10 to-emerald-500/20 dark:from-emerald-500/20 dark:to-emerald-500/30 border-4 border-emerald-500 rounded-[2.5rem] flex items-center justify-between animate-in zoom-in-95 duration-300 shadow-2xl shadow-emerald-500/20">
                <div className="flex items-center gap-5">
@@ -505,11 +415,11 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
         <div className="space-y-3">
           <label className="text-[11px] font-black text-slate-950 dark:text-slate-200 uppercase tracking-widest px-2">3. Amount to Transfer</label>
           <div className="relative group">
-            <span className="absolute left-8 top-1/2 -translate-y-1/2 font-black text-slate-950 dark:text-white text-4xl group-focus-within:text-blue-600 transition-colors"></span>
+            <span className="absolute left-8 top-1/2 -translate-y-1/2 font-black text-slate-950 dark:text-white text-4xl group-focus-within:text-blue-600 transition-colors">₦</span>
             <input 
               type="text" 
               value={amount} 
-              onChange={(e) => setAmount(e.target.value.replace(/\D/g, ''))} 
+              onChange={(e) => handleAmountChange(e.target.value)} 
               placeholder="0.00" 
               className="w-full p-8 pl-16 bg-white dark:bg-slate-800 border-4 border-slate-200 dark:border-slate-700 focus:border-blue-500 rounded-[2.5rem] outline-none font-black text-5xl tabular-nums text-slate-950 dark:text-white transition-all shadow-inner placeholder:text-slate-100 dark:placeholder:text-slate-800" 
             />
@@ -518,20 +428,14 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
 
         <div className="space-y-3">
           <label className="text-[11px] font-black text-slate-950 dark:text-slate-200 uppercase tracking-widest px-2">4. Remark / Narration (Optional)</label>
-          <input 
-            type="text" 
-            value={remark} 
-            onChange={(e) => setRemark(e.target.value)} 
-            placeholder="What's this for? e.g. Lunch money" 
-            className="w-full p-5 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:border-blue-500 font-bold transition-all text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-slate-600" 
-          />
+          <input type="text" value={remark} onChange={(e) => setRemark(e.target.value)} placeholder="What's this for? e.g. Lunch money" className="w-full p-5 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:border-blue-500 font-bold transition-all text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-slate-600" />
         </div>
 
         {step === 'confirm' ? (
           <div className="bg-slate-950 dark:bg-blue-600 p-10 rounded-[3rem] text-white space-y-8 animate-in slide-in-from-top-4 shadow-2xl border-4 border-blue-500/20">
              <div className="space-y-2">
                 <p className="text-[11px] font-black uppercase tracking-[0.3em] text-white/60">Final Authorization</p>
-                <h4 className="text-5xl font-black italic tracking-tighter leading-none">₦{Number(amount).toLocaleString()}</h4>
+                <h4 className="text-5xl font-black italic tracking-tighter leading-none">₦{amount}</h4>
                 {remark && <p className="text-xs font-bold opacity-60">“{remark}”</p>}
              </div>
              <div className="p-6 bg-white/10 rounded-[1.5rem] flex justify-between items-center text-xs font-black uppercase tracking-widest border-2 border-white/20">
@@ -542,36 +446,22 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
              <button onClick={() => setStep('details')} className="w-full text-[11px] font-black uppercase tracking-widest opacity-60 hover:opacity-100 transition-opacity">Edit Transaction</button>
           </div>
         ) : (
-          <button 
-            disabled={!amount || !verifiedName} 
-            onClick={handleTransferRequest} 
-            className="w-full py-7 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white rounded-[2.5rem] font-black uppercase tracking-[0.3em] shadow-2xl shadow-blue-500/40 active:scale-[0.98] disabled:opacity-30 transition-all text-[13px] flex items-center justify-center gap-4"
-          >
-            Review Transfer
-          </button>
+          <button disabled={!amount || !verifiedName} onClick={handleTransferRequest} className="w-full py-7 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white rounded-[2.5rem] font-black uppercase tracking-[0.3em] shadow-2xl shadow-blue-500/40 active:scale-[0.98] disabled:opacity-30 transition-all text-[13px] flex items-center justify-center gap-4">Review Transfer</button>
         )}
       </div>
-
       <div className="bg-blue-600 p-8 rounded-[2.5rem] flex gap-6 items-center shadow-2xl shadow-blue-500/30">
          <span className="text-5xl">💎</span>
          <div>
            <p className="text-[12px] font-black text-white uppercase tracking-widest leading-relaxed mb-1">Moment Reward Active</p>
-           <p className="text-xs font-bold text-blue-100 opacity-90 leading-tight">
-             You are about to earn <span className="text-white font-black underline decoration-2">25 Points</span> on this transaction.
-           </p>
+           <p className="text-xs font-bold text-blue-100 opacity-90 leading-tight">You are about to earn <span className="text-white font-black underline decoration-2">25 Points</span> on this transaction.</p>
          </div>
       </div>
     </div>
   );
 };
 
-// MULTI-ACTION SHARE BUTTON COMPONENT
 const ShareActionButton = ({ icon, label, color, onClick, disabled }: any) => (
-  <button 
-    onClick={onClick}
-    disabled={disabled}
-    className={`flex-1 flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border border-white/10 ${color} shadow-lg tap-scale group transition-all disabled:opacity-50`}
-  >
+  <button onClick={onClick} disabled={disabled} className={`flex-1 flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border border-white/10 ${color} shadow-lg tap-scale group transition-all disabled:opacity-50`}>
      <span className="text-2xl transition-transform group-hover:scale-110">{icon}</span>
      <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/90">{label}</span>
   </button>
@@ -580,9 +470,7 @@ const ShareActionButton = ({ icon, label, color, onClick, disabled }: any) => (
 const ReceiptDetailRow = ({ label, value, isMono = false }: { label: string, value: string, isMono?: boolean }) => (
   <div className="flex flex-row justify-between items-start gap-4 py-0.5">
     <span className="text-[8px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 shrink-0 w-24 md:w-32 mt-0.5 leading-tight">{label}</span>
-    <span className={`text-[10px] md:text-sm font-bold text-slate-900 dark:text-white text-right flex-1 leading-tight ${isMono ? 'font-mono bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded whitespace-nowrap' : 'break-words'}`}>
-      {value}
-    </span>
+    <span className={`text-[10px] md:text-sm font-bold text-slate-900 dark:text-white text-right flex-1 leading-tight ${isMono ? 'font-mono bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded whitespace-nowrap' : 'break-words'}`}>{value}</span>
   </div>
 );
 
