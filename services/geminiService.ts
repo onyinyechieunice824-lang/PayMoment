@@ -3,7 +3,14 @@ import { GoogleGenAI } from "@google/genai";
 import { Transaction } from "../types";
 
 export const analyzeFinances = async (query: string, transactions: Transaction[]) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = process.env.API_KEY;
+  
+  if (!apiKey) {
+    console.error("Gemini API Key is missing. Please check your environment variables.");
+    return "I'm currently unable to access my intelligence core. Please ensure the API Key is configured.";
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
   
   const transactionContext = JSON.stringify(transactions.map(t => ({
     title: t.title,

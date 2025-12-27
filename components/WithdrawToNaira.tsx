@@ -9,7 +9,6 @@ interface WithdrawToNairaProps {
   notify: (msg: string, type?: 'success' | 'info' | 'error') => void;
 }
 
-// Dynamic rates matching the DomiciliaryAccounts component
 const EXCHANGE_RATES: Record<string, number> = {
   USD: 1680.00,
   GBP: 2150.00
@@ -48,15 +47,13 @@ const WithdrawToNaira: React.FC<WithdrawToNairaProps> = ({ user, setUser, notify
 
     setIsProcessing(true);
     
-    // Simulate high-speed interbank settlement
     setTimeout(() => {
       const txId = Math.random().toString(36).substr(2, 9);
       const symbol = fromCurrency === 'USD' ? '$' : '£';
       
-      // Create transaction record for history
       const tx: Transaction = {
         id: txId,
-        type: 'credit', // Credit to NGN
+        type: 'credit',
         amount: estimatedNaira,
         title: `Liquidation: ${symbol}${val.toLocaleString()} to NGN`,
         category: 'Exchange',
@@ -64,7 +61,6 @@ const WithdrawToNaira: React.FC<WithdrawToNairaProps> = ({ user, setUser, notify
         status: 'completed'
       };
 
-      // USE FUNCTIONAL UPDATE TO PREVENT STALE CLOSURES
       setUser(prev => {
         const updatedBalances = { ...prev.balances };
         updatedBalances[fromCurrency] = (updatedBalances[fromCurrency] || 0) - val;

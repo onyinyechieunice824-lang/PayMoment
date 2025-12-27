@@ -1,6 +1,13 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Transaction } from '../types';
+
+// Add missing props interface
+interface BillsProps {
+  notify: (msg: string, type?: 'success' | 'info' | 'error') => void;
+  processTransaction: (tx: Transaction, currency: string) => void;
+}
 
 const CATEGORIES = [
   { id: 'airtime', name: 'Airtime', icon: '📱', color: 'bg-blue-100 text-blue-600' },
@@ -17,7 +24,8 @@ const PROVIDERS: Record<string, string[]> = {
   internet: ['MTN Fiber', 'Spectranet', 'Smile', 'FiberOne'],
 };
 
-const Bills: React.FC = () => {
+// Update component signature to accept props
+const Bills: React.FC<BillsProps> = ({ notify, processTransaction }) => {
   const navigate = useNavigate();
   const [selectedCat, setSelectedCat] = useState<string | null>(null);
   const [step, setStep] = useState<'selection' | 'form' | 'success'>('selection');

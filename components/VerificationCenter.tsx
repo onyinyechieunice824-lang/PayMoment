@@ -71,7 +71,8 @@ const VerificationCenter: React.FC<VerificationCenterProps> = ({ user, setUser, 
     setLoading(true);
     setTimeout(() => {
       const registryStr = localStorage.getItem(GLOBAL_KYC_KEY);
-      const registry = registryStr ? JSON.parse(registryStr) : { bvn: [], nin: [] };
+      // Fixed: Explicitly type registry to avoid never[] inference from empty arrays
+      const registry: { bvn: string[], nin: string[] } = registryStr ? JSON.parse(registryStr) : { bvn: [], nin: [] };
       const type = activeView as 'bvn' | 'nin';
 
       if (registry[type].includes(kycInputValue)) {
@@ -83,9 +84,20 @@ const VerificationCenter: React.FC<VerificationCenterProps> = ({ user, setUser, 
       registry[type].push(kycInputValue);
       localStorage.setItem(GLOBAL_KYC_KEY, JSON.stringify(registry));
 
-      const updatedUser = { ...user };
-      updatedUser.verification[type] = true;
-      updatedUser.verification[`${type}Value` as keyof typeof user.verification] = kycInputValue as any;
+      // Fixed: Type-safe update of verification status
+      const updatedUser: User = { 
+        ...user,
+        verification: { 
+          ...user.verification,
+          [type]: true 
+        }
+      };
+
+      if (type === 'bvn') {
+        updatedUser.verification.bvnValue = kycInputValue;
+      } else if (type === 'nin') {
+        updatedUser.verification.ninValue = kycInputValue;
+      }
       
       if (type === 'bvn' && !user.verification.nin) updatedUser.tier = 1;
       if (type === 'nin') updatedUser.tier = 2;

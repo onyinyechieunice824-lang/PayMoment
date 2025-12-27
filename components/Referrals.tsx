@@ -1,7 +1,14 @@
 
 import React, { useState } from 'react';
+import { User } from '../types';
 
-const Referrals: React.FC = () => {
+// Add missing props interface
+interface ReferralsProps {
+  user: User;
+}
+
+// Update component signature to accept props
+const Referrals: React.FC<ReferralsProps> = ({ user }) => {
   const [copied, setCopied] = useState(false);
   const referralCode = "PAY-TOBI-906";
   const inviteLink = `https://paymoment.ng/invite/${referralCode}`;

@@ -1,8 +1,17 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { User, Transaction } from '../types';
 
-const Savings: React.FC = () => {
+// Add missing props interface
+interface SavingsProps {
+  user: User;
+  setUser: React.Dispatch<React.SetStateAction<User>>;
+  processTransaction: (tx: Transaction, currency: string) => void;
+}
+
+// Update component signature to accept props
+const Savings: React.FC<SavingsProps> = ({ user, setUser, processTransaction }) => {
   const navigate = useNavigate();
   return (
     <div className="space-y-10">
