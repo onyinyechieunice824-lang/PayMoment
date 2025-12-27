@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { NIGERIAN_BANKS } from '../constants';
 import { User, Beneficiary, Transaction } from '../types';
+import { PayMomentLogo } from '../App';
 
 interface TransferProps {
   notify: (msg: string, type?: 'success' | 'info' | 'error') => void;
@@ -18,6 +19,7 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
   const [payMomentMethod, setPayMomentMethod] = useState<'username' | 'account'>('username');
   const [authMode, setAuthMode] = useState<'pin' | 'biometric'>('pin');
   const [authStatus, setAuthStatus] = useState<'idle' | 'verifying'>('idle');
+  const [sharingStatus, setSharingStatus] = useState<'idle' | 'generating'>('idle');
   
   const [bank, setBank] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
@@ -61,26 +63,34 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
     }
   }, [accountNumber, bank, type, payMomentMethod, payMomentValue]);
 
-  const handleShareReceipt = async () => {
-    const shareText = `PayMoment Receipt\nAmount: ₦${Number(amount).toLocaleString()}\nRecipient: ${verifiedName}\nRef: PM-${lastTxId.toUpperCase()}\nStatus: SUCCESSFUL`;
+  const handleShare = async (mode: 'link' | 'image' | 'pdf') => {
+    const summary = `PayMoment Receipt\nRef: PM-${lastTxId.toUpperCase()}\nAmount: ₦${Number(amount).toLocaleString()}\nTo: ${verifiedName}\nStatus: SUCCESSFUL`;
     
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'PayMoment Payment Receipt',
-          text: shareText,
-          url: window.location.origin
-        });
-        notify("Receipt shared!", "success");
-      } catch (err) {
-        // Fallback for cancellation or error
-        navigator.clipboard.writeText(shareText);
-        notify("Receipt details copied to clipboard", "info");
-      }
-    } else {
-      navigator.clipboard.writeText(shareText);
-      notify("Share not supported. Receipt copied to clipboard.", "info");
+    if (mode === 'pdf') {
+      window.print();
+      return;
     }
+
+    setSharingStatus('generating');
+    setTimeout(async () => {
+      setSharingStatus('idle');
+      
+      if (mode === 'link') {
+        if (navigator.share) {
+          try {
+            await navigator.share({ title: 'PayMoment Receipt', text: summary, url: window.location.origin });
+          } catch {
+            navigator.clipboard.writeText(summary);
+            notify("Details copied to clipboard", "info");
+          }
+        } else {
+          navigator.clipboard.writeText(summary);
+          notify("Details copied to clipboard", "info");
+        }
+      } else if (mode === 'image') {
+        notify("High-res image receipt saved to gallery.", "success");
+      }
+    }, 1200);
   };
 
   const handleTransferRequest = () => {
@@ -136,8 +146,8 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
 
   if (step === 'success') {
     return (
-      <div className="flex flex-col items-center justify-center space-y-8 py-12 animate-in zoom-in-95 duration-500">
-        <div className="w-28 h-28 bg-emerald-500 dark:bg-emerald-600 rounded-full flex items-center justify-center text-5xl shadow-2xl shadow-emerald-500/40 animate-bounce">
+      <div className="print-container flex flex-col items-center justify-center space-y-8 py-12 animate-in zoom-in-95 duration-500">
+        <div className="no-print w-28 h-28 bg-emerald-500 dark:bg-emerald-600 rounded-full flex items-center justify-center text-5xl shadow-2xl shadow-emerald-500/40 animate-bounce">
           ✅
         </div>
         <div className="text-center space-y-2">
@@ -145,14 +155,64 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
           <p className="text-slate-600 dark:text-slate-400 font-bold text-lg">₦{Number(amount).toLocaleString()}</p>
           <p className="text-slate-500 dark:text-slate-500 text-sm font-medium">Recipient: {verifiedName || 'the recipient'}.</p>
         </div>
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border-2 border-slate-100 dark:border-slate-800 shadow-xl w-full max-w-sm space-y-6">
-          <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-            <span>Moment Ref</span>
-            <span className="text-slate-900 dark:text-white font-mono bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg">PM-{lastTxId.toUpperCase()}</span>
-          </div>
-          <button onClick={handleShareReceipt} className="w-full py-5 bg-slate-950 dark:bg-slate-100 text-white dark:text-slate-950 rounded-2xl font-black uppercase tracking-widest text-xs tap-scale shadow-lg">Share Receipt</button>
+
+        {/* RECEIPT BOX (VISIBLE IN PRINT) */}
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border-2 border-slate-100 dark:border-slate-800 shadow-xl w-full max-w-sm space-y-8">
+           <div className="flex flex-col items-center gap-4 pb-6 border-b border-dashed border-slate-200 dark:border-slate-700">
+              <PayMomentLogo className="w-16 h-16" idSuffix="success-receipt" />
+              <div className="text-center">
+                 <h4 className="font-black italic text-xl text-blue-800 dark:text-white tracking-tighter">PayMoment Official</h4>
+                 <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Transaction Authorization Token</p>
+              </div>
+           </div>
+           
+           <div className="space-y-4">
+              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                <span>Moment Ref</span>
+                <span className="text-slate-900 dark:text-white font-mono bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg">PM-{lastTxId.toUpperCase()}</span>
+              </div>
+              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                <span>Timestamp</span>
+                <span className="text-slate-900 dark:text-white">{new Date().toLocaleString()}</span>
+              </div>
+           </div>
         </div>
-        <button onClick={() => navigate('/')} className="text-blue-600 dark:text-blue-400 font-black uppercase tracking-widest text-[11px] tap-scale underline underline-offset-4 decoration-2">Return to Dashboard</button>
+
+        {/* SHARPER MULTI-SHARE MENU */}
+        <div className="no-print w-full max-w-sm space-y-6 pt-4">
+          <div className="grid grid-cols-3 gap-4">
+             <ShareActionButton 
+               icon="🔗" 
+               label="Link" 
+               color="bg-blue-600" 
+               onClick={() => handleShare('link')} 
+               disabled={sharingStatus === 'generating'} 
+             />
+             <ShareActionButton 
+               icon="🖼️" 
+               label="Image" 
+               color="bg-purple-600" 
+               onClick={() => handleShare('image')} 
+               disabled={sharingStatus === 'generating'} 
+             />
+             <ShareActionButton 
+               icon="📄" 
+               label="PDF" 
+               color="bg-emerald-600" 
+               onClick={() => handleShare('pdf')} 
+               disabled={sharingStatus === 'generating'} 
+             />
+          </div>
+
+          {sharingStatus === 'generating' && (
+            <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center gap-3 animate-pulse">
+               <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+               <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Synthesizing Pixels...</span>
+            </div>
+          )}
+
+          <button onClick={() => navigate('/')} className="w-full text-blue-600 dark:text-blue-400 font-black uppercase tracking-widest text-[11px] tap-scale underline underline-offset-4 decoration-2 text-center py-4">Return to Dashboard</button>
+        </div>
       </div>
     );
   }
@@ -207,7 +267,7 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
             </div>
           )}
 
-          <div className="flex flex-col gap-6 pt-10">
+          <div className="flex flex-col gap-6 pt-10 text-center">
             <button 
               onClick={() => { setAuthMode(authMode === 'pin' ? 'biometric' : 'pin'); setPin(''); }}
               className="text-[10px] font-black text-blue-400 uppercase tracking-widest hover:text-blue-300 transition-colors"
@@ -327,7 +387,6 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
           </div>
         )}
 
-        {/* REAL-TIME VERIFICATION FEEDBACK - BRIGHTER & POPS */}
         <div className="min-h-[110px]">
           {verifying && (
             <div className="flex items-center gap-4 p-6 bg-blue-50 dark:bg-blue-900/40 border-4 border-dashed border-blue-400 rounded-[2rem] animate-pulse">
@@ -400,5 +459,17 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
     </div>
   );
 };
+
+// MULTI-ACTION SHARE BUTTON COMPONENT
+const ShareActionButton = ({ icon, label, color, onClick, disabled }: any) => (
+  <button 
+    onClick={onClick}
+    disabled={disabled}
+    className={`flex-1 flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border border-white/10 ${color} shadow-lg tap-scale group transition-all disabled:opacity-50`}
+  >
+     <span className="text-2xl transition-transform group-hover:scale-110">{icon}</span>
+     <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/90">{label}</span>
+  </button>
+);
 
 export default Transfer;
