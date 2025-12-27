@@ -59,6 +59,23 @@
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+
+        /* CRITICAL FIX: Ensure date input fields are visible on mobile */
+        input[type="date"]::-webkit-datetime-edit,
+        input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+        input[type="date"]::-webkit-datetime-edit-text,
+        input[type="date"]::-webkit-datetime-edit-month-field,
+        input[type="date"]::-webkit-datetime-edit-day-field,
+        input[type="date"]::-webkit-datetime-edit-year-field {
+            color: inherit !important;
+            opacity: 1 !important;
+        }
+        
+        /* Fix for certain Android browsers that hide the text when background is set */
+        input[type="date"] {
+            display: flex;
+            align-items: center;
+        }
     </style>
 <script type="importmap">
 {
