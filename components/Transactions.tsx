@@ -45,6 +45,62 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
     setEndDate('');
   };
 
+  const generateReceiptCanvas = async (tx: Transaction) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 800;
+    canvas.height = 1000;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 800, 1000);
+
+    ctx.fillStyle = '#1E3A8A';
+    ctx.fillRect(0, 0, 800, 180);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'italic 900 60px Inter, sans-serif';
+    ctx.fillText('PayMoment', 60, 110);
+    ctx.font = 'bold 16px Inter, sans-serif';
+    ctx.fillText('OFFICIAL TRANSACTION RECORD', 60, 145);
+
+    ctx.fillStyle = '#f1f5f9';
+    ctx.fillRect(60, 220, 680, 200);
+
+    ctx.fillStyle = '#64748b';
+    ctx.font = 'bold 20px Inter, sans-serif';
+    ctx.fillText('TRANSACTION AMOUNT', 90, 270);
+
+    ctx.fillStyle = tx.type === 'credit' ? '#10b981' : '#0f172a';
+    ctx.font = '900 70px Inter, sans-serif';
+    ctx.fillText(`${tx.type === 'credit' ? '+' : '-'} NGN ${tx.amount.toLocaleString()}`, 90, 360);
+
+    let y = 500;
+    const drawRow = (label: string, value: string) => {
+      ctx.fillStyle = '#64748b';
+      ctx.font = 'bold 20px Inter, sans-serif';
+      ctx.fillText(label.toUpperCase(), 60, y);
+      ctx.fillStyle = '#0f172a';
+      ctx.font = '800 24px Inter, sans-serif';
+      ctx.fillText(value, 320, y);
+      y += 80;
+    };
+
+    drawRow('Description', tx.title);
+    drawRow('Category', tx.category);
+    drawRow('Reference', `PM-${tx.id.toUpperCase()}`);
+    drawRow('Timestamp', tx.timestamp);
+    drawRow('Status', tx.status.toUpperCase());
+
+    ctx.fillStyle = '#1E3A8A';
+    ctx.fillRect(60, 900, 680, 4);
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = 'italic bold 18px Inter, sans-serif';
+    ctx.fillText('Verified Financial Document. End-to-end Encrypted.', 60, 940);
+
+    return canvas.toDataURL('image/png');
+  };
+
   const handleShare = async (tx: Transaction, mode: 'link' | 'image' | 'pdf') => {
     const summary = `PayMoment Receipt\nType: ${tx.type.toUpperCase()}\nAmount: ₦${tx.amount.toLocaleString()}\nRef: PM-${tx.id.toUpperCase()}\nDate: ${tx.timestamp}`;
     
@@ -54,26 +110,46 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
     }
 
     setSharingStatus('generating');
-    setTimeout(async () => {
-      setSharingStatus('idle');
-      
-      if (mode === 'link') {
-        if (navigator.share) {
+    
+    if (mode === 'image') {
+      const dataUrl = await generateReceiptCanvas(tx);
+      if (dataUrl) {
+        const blob = await (await fetch(dataUrl)).blob();
+        const file = new File([blob], `PayMoment-Receipt-${tx.id}.png`, { type: 'image/png' });
+        
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
           try {
-            await navigator.share({ title: 'PayMoment Receipt', text: summary, url: window.location.href });
-            notify("Receipt shared!", "success");
-          } catch {
-            navigator.clipboard.writeText(summary);
-            notify("Details copied to clipboard", "info");
+            await navigator.share({ files: [file], title: 'PayMoment Receipt' });
+          } catch (e) {
+            const link = document.createElement('a');
+            link.download = `PayMoment-Receipt-${tx.id}.png`;
+            link.href = dataUrl;
+            link.click();
           }
         } else {
-          navigator.clipboard.writeText(summary);
-          notify("Details copied!", "info");
+          const link = document.createElement('a');
+          link.download = `PayMoment-Receipt-${tx.id}.png`;
+          link.href = dataUrl;
+          link.click();
         }
-      } else if (mode === 'image') {
-        notify("Image receipt optimized and saved.", "success");
       }
-    }, 1200);
+      setSharingStatus('idle');
+      notify("Receipt image generated", "success");
+    } else if (mode === 'link') {
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: 'PayMoment Receipt', text: summary, url: window.location.href });
+          notify("Receipt shared!", "success");
+        } catch {
+          navigator.clipboard.writeText(summary);
+          notify("Details copied to clipboard", "info");
+        }
+      } else {
+        navigator.clipboard.writeText(summary);
+        notify("Details copied!", "info");
+      }
+      setSharingStatus('idle');
+    }
   };
 
   const handleReportWrongTransfer = () => {
@@ -97,7 +173,7 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-20">
       {/* Header & Controls */}
-      <div className="flex flex-col gap-6 px-1 print:hidden">
+      <div className="flex flex-col gap-6 px-1 no-print">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-4">
             <button onClick={() => navigate(-1)} className="group flex items-center gap-2 text-slate-500 hover:text-blue-600 transition-colors tap-scale">
@@ -163,7 +239,7 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
         </div>
       </div>
 
-      <div className="print:hidden bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm transition-colors">
+      <div className="no-print bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm transition-colors">
         <div className="divide-y divide-slate-100 dark:divide-slate-800">
           {filteredTransactions.length === 0 ? (
             <div className="p-24 text-center">
@@ -205,7 +281,7 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
 
       {/* RECEIPT MODAL & PRINT CONTAINER */}
       {selectedTx && (
-        <div className="print-container fixed inset-0 z-[200] flex items-end md:items-center justify-center p-0 md:p-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center p-0 md:p-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
            <div className="bg-white dark:bg-slate-900 rounded-t-[3.5rem] md:rounded-[4rem] w-full max-w-lg p-8 md:p-12 shadow-2xl animate-in slide-in-from-bottom-12 duration-500 border-t border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto no-scrollbar">
               
               {!isReporting ? (
@@ -215,7 +291,7 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
                     <button onClick={() => setSelectedTx(null)} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:rotate-90 transition-transform">×</button>
                   </div>
 
-                  <div className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-xl">
+                  <div className="print-container bg-white dark:bg-slate-900 p-8 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-xl">
                     <div className="flex flex-col items-center text-center gap-4 mb-10 pb-8 border-b border-dashed border-slate-200 dark:border-slate-800">
                         <PayMomentLogo className="w-20 h-20" idSuffix="receipt-logo" />
                         <div>

@@ -60,61 +60,32 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* FORCED THEME VISIBILITY FOR DATE INPUTS ON MOBILE */
-        input[type="date"] {
-            color-scheme: light;
-        }
-        .dark input[type="date"] {
-            color-scheme: dark;
-        }
+        input[type="date"] { color-scheme: light; }
+        .dark input[type="date"] { color-scheme: dark; }
 
-        /* Light Mode Defaults */
-        input[type="date"]::-webkit-datetime-edit-text,
-        input[type="date"]::-webkit-datetime-edit-month-field,
-        input[type="date"]::-webkit-datetime-edit-day-field,
-        input[type="date"]::-webkit-datetime-edit-year-field {
-            color: #0f172a !important; /* slate-900 */
-        }
-
-        /* Dark Mode Overrides */
-        .dark input[type="date"]::-webkit-datetime-edit-text,
-        .dark input[type="date"]::-webkit-datetime-edit-month-field,
-        .dark input[type="date"]::-webkit-datetime-edit-day-field,
-        .dark input[type="date"]::-webkit-datetime-edit-year-field {
-            color: #ffffff !important;
-        }
-
-        /* Ensure opacity is full */
-        input[type="date"]::-webkit-datetime-edit {
-            opacity: 1 !important;
-        }
-
-        /* Hide the native "clear" button and ensure native icon is visible but doesn't clash */
-        input[type="date"]::-webkit-calendar-picker-indicator {
-            filter: invert(0.3); /* Greyish icon */
-            cursor: pointer;
-        }
-        .dark input[type="date"]::-webkit-calendar-picker-indicator {
-            filter: invert(1); /* White icon */
-        }
-
-        /* PROFESSIONAL PDF RECEIPT PRINT ENGINE */
         @media print {
             body { 
                 background: white !important; 
                 margin: 0; 
                 padding: 0;
             }
-            #root > div:not(.print-container) {
+            /* Hide everything by default when printing */
+            #root > * {
                 display: none !important;
             }
-            .print-container {
+            /* Specifically show only the print container */
+            #root .print-container {
                 display: block !important;
+                position: absolute;
+                top: 0;
+                left: 0;
                 width: 100% !important;
                 margin: 0 !important;
-                padding: 40px !important;
+                padding: 50px !important;
                 box-shadow: none !important;
                 border: none !important;
+                background: white !important;
+                color: black !important;
             }
             .no-print {
                 display: none !important;

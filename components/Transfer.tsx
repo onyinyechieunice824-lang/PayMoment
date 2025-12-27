@@ -63,6 +63,68 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
     }
   }, [accountNumber, bank, type, payMomentMethod, payMomentValue]);
 
+  const generateReceiptCanvas = async () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 800;
+    canvas.height = 1000;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    // Background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 800, 1000);
+
+    // Header
+    ctx.fillStyle = '#1E3A8A';
+    ctx.fillRect(0, 0, 800, 180);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'italic 900 60px Inter, sans-serif';
+    ctx.fillText('PayMoment', 60, 110);
+
+    ctx.font = 'bold 16px Inter, sans-serif';
+    ctx.fillText('OFFICIAL TRANSACTION RECEIPT', 60, 145);
+
+    // Amount Body
+    ctx.fillStyle = '#f1f5f9';
+    ctx.fillRect(60, 220, 680, 200);
+
+    ctx.fillStyle = '#64748b';
+    ctx.font = 'bold 20px Inter, sans-serif';
+    ctx.fillText('AMOUNT TRANSFERRED', 90, 270);
+
+    ctx.fillStyle = '#0f172a';
+    ctx.font = '900 70px Inter, sans-serif';
+    ctx.fillText(`NGN ${Number(amount).toLocaleString()}`, 90, 360);
+
+    // Details Grid
+    let y = 500;
+    const drawRow = (label: string, value: string) => {
+      ctx.fillStyle = '#64748b';
+      ctx.font = 'bold 20px Inter, sans-serif';
+      ctx.fillText(label.toUpperCase(), 60, y);
+      ctx.fillStyle = '#0f172a';
+      ctx.font = '800 24px Inter, sans-serif';
+      ctx.fillText(value, 320, y);
+      y += 80;
+    };
+
+    drawRow('Recipient', verifiedName || 'N/A');
+    drawRow('Bank', type === 'bank' ? bank : 'PayMoment Internal');
+    drawRow('Reference', `PM-${lastTxId.toUpperCase()}`);
+    drawRow('Date', new Date().toLocaleString());
+    drawRow('Status', 'SUCCESSFUL');
+
+    // Footer
+    ctx.fillStyle = '#1E3A8A';
+    ctx.fillRect(60, 900, 680, 4);
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = 'italic bold 18px Inter, sans-serif';
+    ctx.fillText('Thank you for choosing PayMoment. Secure, Fast, Global.', 60, 940);
+
+    return canvas.toDataURL('image/png');
+  };
+
   const handleShare = async (mode: 'link' | 'image' | 'pdf') => {
     const summary = `PayMoment Receipt\nRef: PM-${lastTxId.toUpperCase()}\nAmount: ₦${Number(amount).toLocaleString()}\nTo: ${verifiedName}\nStatus: SUCCESSFUL`;
     
@@ -72,25 +134,45 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
     }
 
     setSharingStatus('generating');
-    setTimeout(async () => {
-      setSharingStatus('idle');
-      
-      if (mode === 'link') {
-        if (navigator.share) {
+    
+    if (mode === 'image') {
+      const dataUrl = await generateReceiptCanvas();
+      if (dataUrl) {
+        const blob = await (await fetch(dataUrl)).blob();
+        const file = new File([blob], `PayMoment-Receipt-${lastTxId}.png`, { type: 'image/png' });
+        
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
           try {
-            await navigator.share({ title: 'PayMoment Receipt', text: summary, url: window.location.origin });
-          } catch {
-            navigator.clipboard.writeText(summary);
-            notify("Details copied to clipboard", "info");
+            await navigator.share({ files: [file], title: 'PayMoment Receipt' });
+          } catch (e) {
+            const link = document.createElement('a');
+            link.download = `PayMoment-Receipt-${lastTxId}.png`;
+            link.href = dataUrl;
+            link.click();
           }
         } else {
+          const link = document.createElement('a');
+          link.download = `PayMoment-Receipt-${lastTxId}.png`;
+          link.href = dataUrl;
+          link.click();
+        }
+      }
+      setSharingStatus('idle');
+      notify("Image generated successfully", "success");
+    } else if (mode === 'link') {
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: 'PayMoment Receipt', text: summary, url: window.location.origin });
+        } catch {
           navigator.clipboard.writeText(summary);
           notify("Details copied to clipboard", "info");
         }
-      } else if (mode === 'image') {
-        notify("High-res image receipt saved to gallery.", "success");
+      } else {
+        navigator.clipboard.writeText(summary);
+        notify("Details copied to clipboard", "info");
       }
-    }, 1200);
+      setSharingStatus('idle');
+    }
   };
 
   const handleTransferRequest = () => {
@@ -146,18 +228,18 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
 
   if (step === 'success') {
     return (
-      <div className="print-container flex flex-col items-center justify-center space-y-8 py-12 animate-in zoom-in-95 duration-500">
+      <div className="flex flex-col items-center justify-center space-y-8 py-12 animate-in zoom-in-95 duration-500">
         <div className="no-print w-28 h-28 bg-emerald-500 dark:bg-emerald-600 rounded-full flex items-center justify-center text-5xl shadow-2xl shadow-emerald-500/40 animate-bounce">
           ✅
         </div>
-        <div className="text-center space-y-2">
+        <div className="text-center space-y-2 no-print">
           <h2 className="text-3xl font-black text-slate-900 dark:text-white transition-colors tracking-tight italic">Transfer Successful!</h2>
           <p className="text-slate-600 dark:text-slate-400 font-bold text-lg">₦{Number(amount).toLocaleString()}</p>
           <p className="text-slate-500 dark:text-slate-500 text-sm font-medium">Recipient: {verifiedName || 'the recipient'}.</p>
         </div>
 
-        {/* RECEIPT BOX (VISIBLE IN PRINT) */}
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border-2 border-slate-100 dark:border-slate-800 shadow-xl w-full max-w-sm space-y-8">
+        {/* PRINTABLE RECEIPT CONTAINER */}
+        <div className="print-container bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border-2 border-slate-100 dark:border-slate-800 shadow-xl w-full max-w-sm space-y-8 transition-colors">
            <div className="flex flex-col items-center gap-4 pb-6 border-b border-dashed border-slate-200 dark:border-slate-700">
               <PayMomentLogo className="w-16 h-16" idSuffix="success-receipt" />
               <div className="text-center">
@@ -167,18 +249,19 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
            </div>
            
            <div className="space-y-4">
-              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                <span>Moment Ref</span>
-                <span className="text-slate-900 dark:text-white font-mono bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg">PM-{lastTxId.toUpperCase()}</span>
-              </div>
-              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                <span>Timestamp</span>
-                <span className="text-slate-900 dark:text-white">{new Date().toLocaleString()}</span>
-              </div>
+              <ReceiptDetailRow label="Recipient" value={verifiedName} />
+              <ReceiptDetailRow label="Amount" value={`₦${Number(amount).toLocaleString()}`} />
+              <ReceiptDetailRow label="Ref" value={`PM-${lastTxId.toUpperCase()}`} isMono />
+              <ReceiptDetailRow label="Status" value="SUCCESSFUL" />
+              <ReceiptDetailRow label="Time" value={new Date().toLocaleString()} />
+           </div>
+           
+           {/* Invisible element only shown in PDF prints */}
+           <div className="hidden print:block pt-8 text-center">
+              <p className="text-[10px] font-black uppercase text-slate-400">Verified digital document • Generated by PayMoment App</p>
            </div>
         </div>
 
-        {/* SHARPER MULTI-SHARE MENU */}
         <div className="no-print w-full max-w-sm space-y-6 pt-4">
           <div className="grid grid-cols-3 gap-4">
              <ShareActionButton 
@@ -470,6 +553,13 @@ const ShareActionButton = ({ icon, label, color, onClick, disabled }: any) => (
      <span className="text-2xl transition-transform group-hover:scale-110">{icon}</span>
      <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/90">{label}</span>
   </button>
+);
+
+const ReceiptDetailRow = ({ label, value, isMono = false }: { label: string, value: string, isMono?: boolean }) => (
+  <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+    <span>{label}</span>
+    <span className={`text-slate-900 dark:text-white ${isMono ? 'font-mono bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg' : ''}`}>{value}</span>
+  </div>
 );
 
 export default Transfer;
