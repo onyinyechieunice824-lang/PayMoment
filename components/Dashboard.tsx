@@ -122,19 +122,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, notify, processTra
         </div>
       </div>
 
-      {/* QUICK ACCESS BAR */}
-      <div className="flex md:grid md:grid-cols-8 gap-2 overflow-x-auto no-scrollbar pb-2 px-1">
-        <QuickButton onClick={() => navigate('/transfer')} icon="💸" label="Send" color="bg-blue-600" />
-        <QuickButton onClick={() => navigate('/bills')} icon="📱" label="Bills" color="bg-purple-600" />
-        <QuickButton onClick={() => navigate('/investments')} icon="📈" label="Invest" color="bg-emerald-600" />
-        <QuickButton onClick={() => navigate('/marketplace')} icon="🏪" label="Shop" color="bg-amber-600" />
-        <QuickButton onClick={() => navigate('/split-bill')} icon="🤝" label="Split" color="bg-indigo-600" />
-        <QuickButton onClick={() => navigate('/receive-global')} icon="🔗" label="PayLinks" color="bg-teal-600" />
-        <QuickButton onClick={() => navigate('/qr')} icon="🤳" label="Scan" color="bg-rose-600" />
-        <QuickButton onClick={() => setShowFundModal(true)} icon="➕" label="Top Up" color="bg-slate-900 dark:bg-slate-800" />
-      </div>
-
-      {/* Balance Card Section */}
+      {/* Balance Card Section - MOVED UP */}
       <div className="space-y-4">
         <div className="flex justify-between items-center px-2">
           <p className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Premium Wallets</p>
@@ -190,6 +178,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, notify, processTra
           </div>
           <div className="absolute top-[-40px] right-[-40px] w-96 h-96 bg-white/10 rounded-full blur-[120px] group-hover:scale-110 transition-transform duration-1000"></div>
         </div>
+      </div>
+
+      {/* QUICK ACCESS BAR - MOVED DOWN */}
+      <div className="flex md:grid md:grid-cols-8 gap-2 overflow-x-auto no-scrollbar pb-2 px-1">
+        <QuickButton onClick={() => navigate('/transfer')} icon="💸" label="Send" color="bg-blue-600" />
+        <QuickButton onClick={() => navigate('/bills')} icon="📱" label="Bills" color="bg-purple-600" />
+        <QuickButton onClick={() => navigate('/investments')} icon="📈" label="Invest" color="bg-emerald-600" />
+        <QuickButton onClick={() => navigate('/marketplace')} icon="🏪" label="Shop" color="bg-amber-600" />
+        <QuickButton onClick={() => navigate('/split-bill')} icon="🤝" label="Split" color="bg-indigo-600" />
+        <QuickButton onClick={() => navigate('/receive-global')} icon="🔗" label="PayLinks" color="bg-teal-600" />
+        <QuickButton onClick={() => navigate('/qr')} icon="🤳" label="Scan" color="bg-rose-600" />
+        <QuickButton onClick={() => setShowFundModal(true)} icon="➕" label="Top Up" color="bg-slate-900 dark:bg-slate-800" />
       </div>
 
       {/* Transaction History Preview */}

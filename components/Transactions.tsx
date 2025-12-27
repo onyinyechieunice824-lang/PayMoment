@@ -14,6 +14,8 @@ interface TransactionsProps {
 const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser, notify }) => {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<'all' | 'credit' | 'debit'>('all');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   
   // Wrong Transfer Flow State
@@ -21,9 +23,27 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
   const [isReporting, setIsReporting] = useState(false);
 
   const filteredTransactions = useMemo(() => {
-    if (filter === 'all') return transactions;
-    return transactions.filter(t => t.type === filter);
-  }, [transactions, filter]);
+    return transactions.filter(t => {
+      const matchesType = filter === 'all' || t.type === filter;
+      
+      let matchesDate = true;
+      if (startDate || endDate) {
+        // Handle timestamps that might be strings or locales
+        const txDate = new Date(t.timestamp).getTime();
+        const start = startDate ? new Date(startDate).setHours(0,0,0,0) : -Infinity;
+        const end = endDate ? new Date(endDate).setHours(23,59,59,999) : Infinity;
+        matchesDate = txDate >= start && txDate <= end;
+      }
+      
+      return matchesType && matchesDate;
+    });
+  }, [transactions, filter, startDate, endDate]);
+
+  const clearFilters = () => {
+    setFilter('all');
+    setStartDate('');
+    setEndDate('');
+  };
 
   const handleShare = async (tx: Transaction) => {
     const shareData = {
@@ -44,23 +64,12 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
     }
   };
 
-  /**
-   * Resolution Logic:
-   * Simulates finding the recipient and attempting reversal.
-   */
   const handleReportWrongTransfer = () => {
     if (!selectedTx) return;
     setResolutionStep('processing');
     
     setTimeout(() => {
-      const amount = selectedTx.amount;
-      
-      // MOCK LOGIC: We simulate a recipient "Recipient User"
-      // If the recipient had funds, we reverse. 
-      // If not, we blacklist them (for demo purposes we simulate the 'Recipient' being another mock state or just flag the user if they were the receiver)
-      
       if (selectedTx.type === 'debit') {
-        // Sender is reporting a wrong transfer they sent
         setUser(prev => {
           const updatedTransactions = prev.transactions.map(t => 
             t.id === selectedTx.id ? { ...t, status: 'recovery_active' as const, isWrongTransfer: true } : t
@@ -78,11 +87,10 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
     }, 2500);
   };
 
-  // Demo helper to trigger "Me being blacklisted" to show the UI
   const simulateBeingRecipientOfWrongTransfer = () => {
     setUser(prev => ({
       ...prev,
-      balances: { ...prev.balances, NGN: 0 }, // Drain balance to trigger debt
+      balances: { ...prev.balances, NGN: 0 }, 
       debtInfo: {
         isBlacklisted: true,
         totalOwed: 50000,
@@ -96,30 +104,78 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-20">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-1 print:hidden">
-        <div className="space-y-4">
-          <button onClick={() => navigate(-1)} className="group flex items-center gap-2 text-slate-500 hover:text-blue-600 transition-colors tap-scale">
-            <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7"/></svg>
+      {/* Header & Controls */}
+      <div className="flex flex-col gap-6 px-1 print:hidden">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="space-y-4">
+            <button onClick={() => navigate(-1)} className="group flex items-center gap-2 text-slate-500 hover:text-blue-600 transition-colors tap-scale">
+              <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7"/></svg>
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-widest">Back</span>
+            </button>
+            <div>
+              <h2 className="text-3xl font-black text-slate-900 dark:text-white italic tracking-tighter leading-none">Activity Feed</h2>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1">Real-time ledger of your financial moments.</p>
             </div>
-            <span className="text-[10px] font-black uppercase tracking-widest">Back</span>
-          </button>
-          <div>
-            <h2 className="text-3xl font-black text-slate-900 dark:text-white italic tracking-tighter leading-none">Activity Feed</h2>
-            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1">Real-time ledger of your financial moments.</p>
+          </div>
+
+          <div className="flex bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
+             {['all', 'credit', 'debit'].map((f) => (
+               <button 
+                key={f}
+                onClick={() => setFilter(f as any)}
+                className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === f ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-blue-600'}`}
+               >
+                 {f}
+               </button>
+             ))}
           </div>
         </div>
 
-        <div className="flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
-           {['all', 'credit', 'debit'].map((f) => (
-             <button 
-              key={f}
-              onClick={() => setFilter(f as any)}
-              className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === f ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-blue-600'}`}
-             >
-               {f}
-             </button>
-           ))}
+        {/* Date Filter Bar - REFINED FOR LIGHT MODE VISIBILITY */}
+        <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-xl flex flex-col md:flex-row items-end gap-6 transition-all">
+          <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[11px] font-black text-slate-900 dark:text-slate-400 uppercase tracking-widest px-1">Starting Period</label>
+              <div className="relative group">
+                <input 
+                  type="date" 
+                  value={startDate} 
+                  onChange={(e) => setStartDate(e.target.value)} 
+                  className="w-full bg-slate-100 dark:bg-slate-800/50 p-5 rounded-[1.5rem] border-2 border-slate-300 dark:border-slate-700 text-xs font-black text-slate-900 dark:text-white outline-none focus:border-blue-600 focus:bg-white dark:focus:bg-slate-800 transition-all shadow-sm cursor-pointer pr-12"
+                />
+                <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[11px] font-black text-slate-900 dark:text-slate-400 uppercase tracking-widest px-1">Ending Period</label>
+              <div className="relative group">
+                <input 
+                  type="date" 
+                  value={endDate} 
+                  onChange={(e) => setEndDate(e.target.value)} 
+                  className="w-full bg-slate-100 dark:bg-slate-800/50 p-5 rounded-[1.5rem] border-2 border-slate-300 dark:border-slate-700 text-xs font-black text-slate-900 dark:text-white outline-none focus:border-blue-600 focus:bg-white dark:focus:bg-slate-800 transition-all shadow-sm cursor-pointer pr-12"
+                />
+                <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex w-full md:w-auto gap-3">
+             {(startDate || endDate || filter !== 'all') && (
+              <button 
+                onClick={clearFilters}
+                className="flex-1 md:flex-none text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-[0.2em] px-8 py-5 bg-rose-50 dark:bg-rose-950/20 rounded-[1.5rem] transition-all hover:bg-rose-100 border-2 border-rose-200 dark:border-rose-900/30 tap-scale"
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -128,7 +184,7 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
           {filteredTransactions.length === 0 ? (
             <div className="p-24 text-center">
                <span className="text-5xl block mb-6 grayscale opacity-30">📂</span>
-               <p className="text-slate-400 font-black uppercase tracking-[0.2em] italic text-xs">No records found</p>
+               <p className="text-slate-400 font-black uppercase tracking-[0.2em] italic text-xs">No records found for this period</p>
             </div>
           ) : (
             filteredTransactions.map((tx) => (
@@ -163,7 +219,7 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
         </div>
       </div>
 
-      {/* REDESIGNED TRANSACTION RECEIPT MODAL WITH RESOLUTION CENTER */}
+      {/* TRANSACTION RECEIPT MODAL */}
       {selectedTx && (
         <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center p-0 md:p-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
            <div className="bg-white dark:bg-slate-900 rounded-t-[3.5rem] md:rounded-[4rem] w-full max-w-lg p-8 md:p-12 shadow-2xl animate-in slide-in-from-bottom-12 duration-500 border-t border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto no-scrollbar">
@@ -218,7 +274,6 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
                       </button>
                     )}
 
-                    {/* Secret Debug Button to trigger being the debtor */}
                     <button 
                       onDoubleClick={simulateBeingRecipientOfWrongTransfer}
                       className="w-full text-[8px] opacity-0 hover:opacity-10 cursor-default"

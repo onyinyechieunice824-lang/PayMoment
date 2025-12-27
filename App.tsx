@@ -120,6 +120,7 @@ const AppContent: React.FC<{
           <SidebarItem to="/marketplace" label="Marketplace" icon="🏪" />
           <SidebarItem to="/transfer" label="Transfers" icon="💸" />
           <SidebarItem to="/cards" label="Cards" icon="💳" />
+          <SidebarItem to="/transactions" label="History" icon="🧾" />
           <SidebarItem to="/dom-accounts" label="Global Hub" icon="🏦" />
           <SidebarItem to="/savings" label="Savings" icon="💰" />
           <SidebarItem to="/ai-assistant" label="PayAI" icon="✨" />
