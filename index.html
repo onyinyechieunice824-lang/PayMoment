@@ -60,21 +60,42 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* CRITICAL FIX: Ensure date input fields are visible on mobile */
-        input[type="date"]::-webkit-datetime-edit,
-        input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+        /* FORCED THEME VISIBILITY FOR DATE INPUTS ON MOBILE */
+        input[type="date"] {
+            color-scheme: light;
+        }
+        .dark input[type="date"] {
+            color-scheme: dark;
+        }
+
+        /* Light Mode Defaults */
         input[type="date"]::-webkit-datetime-edit-text,
         input[type="date"]::-webkit-datetime-edit-month-field,
         input[type="date"]::-webkit-datetime-edit-day-field,
         input[type="date"]::-webkit-datetime-edit-year-field {
-            color: inherit !important;
+            color: #0f172a !important; /* slate-900 */
+        }
+
+        /* Dark Mode Overrides */
+        .dark input[type="date"]::-webkit-datetime-edit-text,
+        .dark input[type="date"]::-webkit-datetime-edit-month-field,
+        .dark input[type="date"]::-webkit-datetime-edit-day-field,
+        .dark input[type="date"]::-webkit-datetime-edit-year-field {
+            color: #ffffff !important;
+        }
+
+        /* Ensure opacity is full */
+        input[type="date"]::-webkit-datetime-edit {
             opacity: 1 !important;
         }
-        
-        /* Fix for certain Android browsers that hide the text when background is set */
-        input[type="date"] {
-            display: flex;
-            align-items: center;
+
+        /* Hide the native "clear" button and ensure native icon is visible but doesn't clash */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(0.3); /* Greyish icon */
+            cursor: pointer;
+        }
+        .dark input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1); /* White icon */
         }
     </style>
 <script type="importmap">
