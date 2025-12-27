@@ -117,22 +117,23 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
 
   if (step === 'success') {
     return (
-      <div className="flex flex-col items-center justify-center space-y-6 py-12 animate-in zoom-in-95 duration-500">
-        <div className="w-24 h-24 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center text-4xl shadow-lg animate-bounce">
+      <div className="flex flex-col items-center justify-center space-y-8 py-12 animate-in zoom-in-95 duration-500">
+        <div className="w-28 h-28 bg-emerald-500 dark:bg-emerald-600 rounded-full flex items-center justify-center text-5xl shadow-2xl shadow-emerald-500/40 animate-bounce">
           ✅
         </div>
-        <div className="text-center">
-          <h2 className="text-2xl font-black text-slate-900 dark:text-white transition-colors">Transfer Successful!</h2>
-          <p className="text-slate-500 dark:text-slate-400 font-medium">₦{Number(amount).toLocaleString()} sent to {verifiedName || 'the recipient'}.</p>
+        <div className="text-center space-y-2">
+          <h2 className="text-3xl font-black text-slate-900 dark:text-white transition-colors tracking-tight italic">Transfer Successful!</h2>
+          <p className="text-slate-600 dark:text-slate-400 font-bold text-lg">₦{Number(amount).toLocaleString()}</p>
+          <p className="text-slate-500 dark:text-slate-500 text-sm font-medium">Recipient: {verifiedName || 'the recipient'}.</p>
         </div>
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm w-full max-w-sm space-y-4">
-          <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-500">
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border-2 border-slate-100 dark:border-slate-800 shadow-xl w-full max-w-sm space-y-6">
+          <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
             <span>Moment Ref</span>
-            <span className="text-slate-900 dark:text-white font-mono">PM-{Math.random().toString(36).substr(2, 9).toUpperCase()}</span>
+            <span className="text-slate-900 dark:text-white font-mono bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg">PM-{Math.random().toString(36).substr(2, 9).toUpperCase()}</span>
           </div>
-          <button className="w-full py-4 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white rounded-2xl font-black uppercase tracking-widest text-[9px] tap-scale">Share Receipt</button>
+          <button className="w-full py-5 bg-slate-950 dark:bg-slate-100 text-white dark:text-slate-950 rounded-2xl font-black uppercase tracking-widest text-xs tap-scale shadow-lg">Share Receipt</button>
         </div>
-        <button onClick={() => navigate('/')} className="text-blue-600 font-black uppercase tracking-widest text-[10px] tap-scale">Return to Wallet</button>
+        <button onClick={() => navigate('/')} className="text-blue-600 dark:text-blue-400 font-black uppercase tracking-widest text-[11px] tap-scale underline underline-offset-4 decoration-2">Return to Dashboard</button>
       </div>
     );
   }
@@ -146,157 +147,168 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
         <span className="text-[10px] font-black uppercase tracking-widest">Back</span>
       </button>
 
-      <div>
-        <h2 className="text-3xl font-black italic tracking-tighter text-slate-900 dark:text-white leading-none">Send Money</h2>
-        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Instant Wealth Mobility</p>
+      <div className="flex items-end justify-between px-1">
+        <div>
+          <h2 className="text-4xl font-black italic tracking-tighter text-slate-900 dark:text-white leading-none">Send Money</h2>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mt-2">Instant Wealth Mobility</p>
+        </div>
+        <div className="w-14 h-14 bg-blue-50 dark:bg-blue-900/20 rounded-[1.5rem] flex items-center justify-center text-3xl shadow-inner">💸</div>
       </div>
 
-      {/* Primary Toggle: External vs PayMoment */}
-      <div className="bg-white dark:bg-slate-900 p-2 rounded-[2.5rem] flex border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
+      {/* Primary Toggle: External vs PayMoment - BRIGHTER & SHARPER */}
+      <div className="bg-white dark:bg-slate-900 p-2 rounded-[2.5rem] flex border-2 border-slate-100 dark:border-slate-800 shadow-lg transition-colors overflow-hidden">
         <button 
           onClick={() => { setType('bank'); setVerifiedName(''); }} 
-          className={`flex-1 py-4 rounded-[2rem] text-[10px] font-black uppercase tracking-widest transition-all tap-scale ${type === 'bank' ? 'bg-blue-600 text-white shadow-xl' : 'text-slate-500 hover:text-blue-600'}`}
+          className={`flex-1 py-5 rounded-[2rem] text-[11px] font-black uppercase tracking-widest transition-all tap-scale ${type === 'bank' ? 'bg-blue-500 text-white shadow-xl shadow-blue-500/40' : 'text-slate-400 hover:text-blue-600'}`}
         >
           Other Bank
         </button>
         <button 
           onClick={() => { setType('paymoment'); setVerifiedName(''); }} 
-          className={`flex-1 py-4 rounded-[2rem] text-[10px] font-black uppercase tracking-widest transition-all tap-scale ${type === 'paymoment' ? 'bg-purple-600 text-white shadow-xl' : 'text-slate-500 hover:text-purple-600'}`}
+          className={`flex-1 py-5 rounded-[2rem] text-[11px] font-black uppercase tracking-widest transition-all tap-scale ${type === 'paymoment' ? 'bg-purple-500 text-white shadow-xl shadow-purple-500/40' : 'text-slate-400 hover:text-purple-600'}`}
         >
           PayMoment User
         </button>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-8 md:p-10 border border-slate-200 dark:border-slate-800 shadow-xl space-y-8 transition-colors">
+      <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-8 md:p-12 border-2 border-slate-100 dark:border-slate-800 shadow-2xl space-y-10 transition-colors">
         {type === 'bank' ? (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest px-1">Choose Recipient Bank</label>
-              <select 
-                value={bank} 
-                onChange={(e) => setBank(e.target.value)} 
-                className="w-full p-5 bg-slate-100 dark:bg-slate-800 border-2 border-transparent focus:border-blue-500 rounded-2xl outline-none font-black text-sm text-slate-900 dark:text-white transition-all appearance-none"
-              >
-                <option value="">Select Bank...</option>
-                {NIGERIAN_BANKS.map(b => <option key={b} value={b}>{b}</option>)}
-              </select>
+          <div className="space-y-8">
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-slate-950 dark:text-slate-300 uppercase tracking-widest px-2">1. Choose Recipient Bank</label>
+              <div className="relative group">
+                <select 
+                  value={bank} 
+                  onChange={(e) => setBank(e.target.value)} 
+                  className="w-full p-6 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-blue-500 rounded-3xl outline-none font-black text-sm text-slate-900 dark:text-white transition-all appearance-none shadow-sm group-hover:border-slate-300 dark:group-hover:border-slate-600"
+                >
+                  <option value="">Select Bank...</option>
+                  {NIGERIAN_BANKS.map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
+                <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"/></svg>
+                </div>
+              </div>
             </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest px-1">Account Number</label>
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-slate-950 dark:text-slate-300 uppercase tracking-widest px-2">2. Account Number</label>
               <input 
                 type="text" 
                 maxLength={10} 
                 value={accountNumber} 
                 onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))} 
                 placeholder="0123456789" 
-                className="w-full p-5 bg-slate-100 dark:bg-slate-800 border-2 border-transparent focus:border-blue-500 rounded-2xl outline-none font-black text-lg tabular-nums text-slate-900 dark:text-white transition-all" 
+                className="w-full p-6 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-blue-500 rounded-3xl outline-none font-black text-xl tracking-[0.2em] tabular-nums text-slate-900 dark:text-white transition-all shadow-sm placeholder:text-slate-200 dark:placeholder:text-slate-700" 
               />
             </div>
           </div>
         ) : (
-          <div className="space-y-8">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-10">
+            <div className="grid grid-cols-2 gap-6">
                <button 
                 onClick={() => { setPayMomentMethod('username'); setPayMomentValue(''); setVerifiedName(''); }}
-                className={`p-5 rounded-[2rem] border-4 transition-all flex flex-col items-center gap-2 ${payMomentMethod === 'username' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-600' : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'}`}
+                className={`p-6 rounded-[2.5rem] border-4 transition-all flex flex-col items-center gap-3 tap-scale ${payMomentMethod === 'username' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-500 shadow-md' : 'bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-800'}`}
                >
-                 <span className="text-2xl">👤</span>
-                 <span className="font-black text-[9px] uppercase tracking-widest text-slate-900 dark:text-white">Pay ID (@ID)</span>
+                 <span className="text-3xl">👤</span>
+                 <span className={`font-black text-[10px] uppercase tracking-widest ${payMomentMethod === 'username' ? 'text-purple-600' : 'text-slate-400'}`}>Pay ID (@ID)</span>
                </button>
                <button 
                 onClick={() => { setPayMomentMethod('account'); setPayMomentValue(''); setVerifiedName(''); }}
-                className={`p-5 rounded-[2rem] border-4 transition-all flex flex-col items-center gap-2 ${payMomentMethod === 'account' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-600' : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'}`}
+                className={`p-6 rounded-[2.5rem] border-4 transition-all flex flex-col items-center gap-3 tap-scale ${payMomentMethod === 'account' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-500 shadow-md' : 'bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-800'}`}
                >
-                 <span className="text-2xl">🔢</span>
-                 <span className="font-black text-[9px] uppercase tracking-widest text-slate-900 dark:text-white">PM Account</span>
+                 <span className="text-3xl">🔢</span>
+                 <span className={`font-black text-[10px] uppercase tracking-widest ${payMomentMethod === 'account' ? 'text-purple-600' : 'text-slate-400'}`}>PM Account</span>
                </button>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest px-1">
-                {payMomentMethod === 'username' ? 'Recipient Pay ID' : 'PayMoment Account'}
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-slate-950 dark:text-slate-300 uppercase tracking-widest px-2">
+                Recipient {payMomentMethod === 'username' ? 'Pay ID' : 'Account'}
               </label>
-              <div className="relative">
-                {payMomentMethod === 'username' && <span className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-slate-400">@</span>}
+              <div className="relative group">
+                {payMomentMethod === 'username' && <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-slate-400 text-xl group-focus-within:text-purple-500 transition-colors">@</span>}
                 <input 
                   type="text" 
                   value={payMomentValue}
                   maxLength={payMomentMethod === 'account' ? 10 : 20}
                   onChange={(e) => setPayMomentValue(payMomentMethod === 'account' ? e.target.value.replace(/\D/g, '') : e.target.value.toLowerCase())}
                   placeholder={payMomentMethod === 'username' ? 'username' : '0123456789'} 
-                  className={`w-full p-5 ${payMomentMethod === 'username' ? 'pl-10' : ''} bg-slate-100 dark:bg-slate-800 border-2 border-transparent focus:border-purple-600 rounded-2xl outline-none font-black text-lg text-slate-900 dark:text-white transition-all`} 
+                  className={`w-full p-6 ${payMomentMethod === 'username' ? 'pl-12' : 'pl-6'} bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus:border-purple-600 rounded-3xl outline-none font-black text-xl text-slate-900 dark:text-white transition-all shadow-sm placeholder:text-slate-200 dark:placeholder:text-slate-700`} 
                 />
               </div>
             </div>
           </div>
         )}
 
-        {/* REAL-TIME VERIFICATION FEEDBACK */}
-        <div className="min-h-[80px]">
+        {/* REAL-TIME VERIFICATION FEEDBACK - BRIGHTER & POPS */}
+        <div className="min-h-[100px]">
           {verifying && (
-            <div className="flex items-center gap-3 p-5 bg-blue-50 dark:bg-blue-900/10 border-2 border-dashed border-blue-200 dark:border-blue-800 rounded-[2rem] animate-pulse">
-               <div className="w-8 h-8 rounded-full border-4 border-blue-600 border-t-transparent animate-spin"></div>
-               <span className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-400">Verifying Identity...</span>
+            <div className="flex items-center gap-4 p-6 bg-blue-50 dark:bg-blue-900/20 border-2 border-dashed border-blue-200 dark:border-blue-800 rounded-[2rem] animate-pulse">
+               <div className="w-10 h-10 rounded-full border-4 border-blue-500 border-t-transparent animate-spin"></div>
+               <span className="text-[11px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">Security Lookup in Progress...</span>
             </div>
           )}
 
           {verifiedName && (
-            <div className="p-6 bg-emerald-50 dark:bg-emerald-900/20 border-4 border-emerald-500 rounded-[2rem] flex items-center justify-between animate-in zoom-in-95 duration-300">
-               <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center text-xl shadow-sm border border-emerald-100 dark:border-transparent">👤</div>
+            <div className="p-8 bg-emerald-50 dark:bg-emerald-950/30 border-4 border-emerald-500 rounded-[2.5rem] flex items-center justify-between animate-in zoom-in-95 duration-300 shadow-xl shadow-emerald-500/10">
+               <div className="flex items-center gap-5">
+                  <div className="w-14 h-14 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-2xl shadow-md border-2 border-emerald-100 dark:border-emerald-900">👤</div>
                   <div>
-                    <p className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest leading-none mb-1">Confirmed Recipient</p>
-                    <p className="text-sm font-black text-slate-900 dark:text-white leading-none">{verifiedName}</p>
+                    <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.2em] leading-none mb-2">Authenticated Recipient</p>
+                    <p className="text-lg font-black text-slate-950 dark:text-white leading-none tracking-tight italic">{verifiedName}</p>
                   </div>
                </div>
-               <span className="text-emerald-500 text-xl">🛡️</span>
+               <div className="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center text-white shadow-lg">🛡️</div>
             </div>
           )}
         </div>
 
-        <div className="space-y-2">
-          <label className="text-[10px] font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest px-1">Amount to Send</label>
-          <div className="relative">
-            <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-slate-400 text-2xl">₦</span>
+        <div className="space-y-3">
+          <label className="text-[10px] font-black text-slate-950 dark:text-slate-300 uppercase tracking-widest px-2">3. Amount to Transfer</label>
+          <div className="relative group">
+            <span className="absolute left-8 top-1/2 -translate-y-1/2 font-black text-slate-950 dark:text-white text-3xl group-focus-within:text-blue-600 transition-colors">₦</span>
             <input 
               type="text" 
               value={amount} 
               onChange={(e) => setAmount(e.target.value.replace(/\D/g, ''))} 
               placeholder="0.00" 
-              className="w-full p-6 pl-14 bg-slate-100 dark:bg-slate-800 border-2 border-transparent focus:border-blue-500 rounded-[2rem] outline-none font-black text-4xl tabular-nums text-slate-900 dark:text-white transition-all shadow-inner" 
+              className="w-full p-8 pl-16 bg-white dark:bg-slate-800 border-4 border-slate-100 dark:border-slate-800 focus:border-blue-500 rounded-[2.5rem] outline-none font-black text-5xl tabular-nums text-slate-950 dark:text-white transition-all shadow-inner placeholder:text-slate-100 dark:placeholder:text-slate-900" 
             />
           </div>
         </div>
 
         {step === 'confirm' ? (
-          <div className="bg-blue-700 p-8 rounded-[3rem] text-white space-y-6 animate-in slide-in-from-top-4">
-             <div className="space-y-1">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-200">Payment Breakdown</p>
-                <h4 className="text-2xl font-black italic">₦{Number(amount).toLocaleString()} Total</h4>
+          <div className="bg-slate-950 dark:bg-blue-600 p-10 rounded-[3rem] text-white space-y-8 animate-in slide-in-from-top-4 shadow-2xl">
+             <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50">Payment Authorization</p>
+                <h4 className="text-4xl font-black italic tracking-tighter leading-none">₦{Number(amount).toLocaleString()} Total</h4>
              </div>
-             <div className="p-4 bg-white/10 rounded-2xl flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+             <div className="p-6 bg-white/10 rounded-[1.5rem] flex justify-between items-center text-xs font-black uppercase tracking-widest border border-white/10">
                 <span>Moment Fee</span>
-                <span className="text-emerald-300">₦0.00 FREE</span>
+                <span className="text-emerald-400">FREE INSTANT</span>
              </div>
-             <button onClick={finalizeTransfer} className="w-full py-5 bg-white text-blue-700 rounded-2xl font-black uppercase tracking-widest shadow-2xl active:scale-95 transition-all">Authorize Payment</button>
-             <button onClick={() => setStep('details')} className="w-full text-[9px] font-black uppercase tracking-widest opacity-60">Edit Details</button>
+             <button onClick={finalizeTransfer} className="w-full py-6 bg-white text-slate-950 rounded-2xl font-black uppercase tracking-widest shadow-2xl active:scale-95 transition-all text-xs">Authorize with Moment PIN</button>
+             <button onClick={() => setStep('details')} className="w-full text-[10px] font-black uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity">Edit Transaction</button>
           </div>
         ) : (
           <button 
             disabled={!amount || !verifiedName} 
             onClick={handleTransferRequest} 
-            className="w-full py-6 bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-600 text-white rounded-[2.5rem] font-black uppercase tracking-[0.2em] shadow-2xl active:scale-95 disabled:opacity-30 transition-all text-xs"
+            className="w-full py-7 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-500 text-white rounded-[2.5rem] font-black uppercase tracking-[0.3em] shadow-2xl shadow-blue-500/30 active:scale-[0.98] disabled:opacity-20 transition-all text-xs flex items-center justify-center gap-4"
           >
-            Review Transfer
+            Review & Send Moment
           </button>
         )}
       </div>
 
-      <div className="bg-blue-50 dark:bg-blue-900/10 p-6 rounded-[2.5rem] border border-blue-100 dark:border-blue-800/50 flex gap-4 items-center">
-         <span className="text-3xl">🎁</span>
-         <p className="text-[10px] font-bold text-blue-900 dark:text-blue-300 uppercase tracking-widest leading-relaxed">
-           You earn <span className="font-black">15 MomentPoints</span> on this transfer. Internal transfers are <span className="font-black">100% Free</span>.
-         </p>
+      <div className="bg-blue-600 p-8 rounded-[2.5rem] flex gap-6 items-center shadow-xl shadow-blue-500/20">
+         <span className="text-4xl">💎</span>
+         <div>
+           <p className="text-[11px] font-black text-white uppercase tracking-widest leading-relaxed mb-1">Moment Reward Active</p>
+           <p className="text-xs font-bold text-blue-100 opacity-90 leading-tight">
+             Earn <span className="text-white font-black underline decoration-2">15 MomentPoints</span> on this transfer. Internal transfers are always free.
+           </p>
+         </div>
       </div>
     </div>
   );
