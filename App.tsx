@@ -146,12 +146,21 @@ const AppContent: React.FC<{
       <main className="flex-1 min-h-screen flex flex-col">
         <header className="md:hidden flex items-center justify-between p-5 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 transition-colors">
            <div className="flex items-center gap-2">
-              <PayMomentLogo className="w-8 h-8" idSuffix="header" />
+              <PayMomentLogo className="w-8 h-8" idSuffix="mobile-header" />
               <h1 className="text-xl font-black bg-gradient-to-r from-blue-700 to-purple-600 bg-clip-text text-transparent italic tracking-tighter">PayMoment</h1>
            </div>
-           <NavLink to="/profile" className="tap-scale">
-             <UserAvatar user={user} className="w-10 h-10" />
-           </NavLink>
+           <div className="flex items-center gap-3">
+             <button 
+                onClick={toggleDarkMode} 
+                className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-700 tap-scale shadow-sm"
+                aria-label="Toggle Theme"
+             >
+                {isDarkMode ? '🌞' : '🌙'}
+             </button>
+             <NavLink to="/profile" className="tap-scale">
+               <UserAvatar user={user} className="w-10 h-10" />
+             </NavLink>
+           </div>
         </header>
 
         <div className="p-4 md:p-8 lg:p-12 max-w-7xl mx-auto flex-1 w-full page-fade-in">
@@ -175,7 +184,7 @@ const AppContent: React.FC<{
             <Route path="/transactions" element={<Transactions transactions={user.transactions} user={user} setUser={setUser} notify={notify} />} />
             <Route path="/savings" element={<Savings user={user} setUser={setUser} processTransaction={processTransaction} />} />
             <Route path="/referrals" element={<Referrals user={user} />} />
-            <Route path="/profile" element={<Profile user={user} setUser={setUser} notify={notify} onSignOut={onSignOut} onReset={onReset} />} />
+            <Route path="/profile" element={<Profile user={user} setUser={setUser} notify={notify} onSignOut={onSignOut} onReset={onReset} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />} />
           </Routes>
         </div>
         

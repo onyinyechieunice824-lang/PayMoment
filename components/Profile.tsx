@@ -10,6 +10,8 @@ interface ProfileProps {
   notify: (msg: string, type?: 'success' | 'info' | 'error') => void;
   onSignOut: () => void;
   onReset: () => void;
+  isDarkMode?: boolean;
+  toggleDarkMode?: () => void;
 }
 
 const TIER_BENEFITS = [
@@ -18,7 +20,7 @@ const TIER_BENEFITS = [
   { level: 3, name: 'Premium', limit: '₦10,000,000' },
 ];
 
-const Profile: React.FC<ProfileProps> = ({ user, setUser, notify, onSignOut, onReset }) => {
+const Profile: React.FC<ProfileProps> = ({ user, setUser, notify, onSignOut, onReset, isDarkMode, toggleDarkMode }) => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -73,17 +75,16 @@ const Profile: React.FC<ProfileProps> = ({ user, setUser, notify, onSignOut, onR
 
       <div className="grid gap-6 md:grid-cols-2">
         <div className="space-y-6">
-          {/* Banking Identity Section */}
           <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 border border-slate-100 dark:border-slate-800 shadow-sm space-y-6 transition-colors">
             <h3 className="font-black text-lg text-slate-900 dark:text-white italic tracking-tight">Financial Identity</h3>
             <div className="space-y-4">
-              <div className="p-5 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 group relative">
-                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Moment Account Number</p>
+              <div className="p-5 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700">
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Account Number</p>
                  <div className="flex justify-between items-center">
                     <span className="text-lg font-black text-slate-900 dark:text-white tracking-widest tabular-nums">{user.accountNumber}</span>
                     <button 
                       onClick={() => handleCopy(user.accountNumber)}
-                      className="text-[10px] font-black text-blue-600 uppercase tracking-tighter bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-xl border border-blue-100 dark:border-transparent tap-scale"
+                      className="text-[10px] font-black text-blue-600 uppercase tracking-tighter bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-xl tap-scale"
                     >
                       Copy
                     </button>
@@ -91,7 +92,7 @@ const Profile: React.FC<ProfileProps> = ({ user, setUser, notify, onSignOut, onR
               </div>
               <div className="p-5 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700">
                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Partner Bank</p>
-                 <span className="text-sm font-bold text-slate-900 dark:text-white">PayMoment Bank (via Wema)</span>
+                 <span className="text-sm font-bold text-slate-900 dark:text-white">PayMoment Bank (Wema)</span>
               </div>
             </div>
           </div>
@@ -99,7 +100,7 @@ const Profile: React.FC<ProfileProps> = ({ user, setUser, notify, onSignOut, onR
           <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 border border-slate-100 dark:border-slate-800 shadow-sm space-y-6 transition-colors">
              <div className="flex justify-between items-center">
                 <h3 className="font-black text-lg text-slate-900 dark:text-white italic tracking-tight">Trust Level</h3>
-                <button onClick={() => navigate('/verification')} className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest hover:opacity-70">Upgrade →</button>
+                <button onClick={() => navigate('/verification')} className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">Upgrade →</button>
              </div>
              <div className="space-y-4">
                 {TIER_BENEFITS.map((tier, idx) => (
@@ -110,7 +111,7 @@ const Profile: React.FC<ProfileProps> = ({ user, setUser, notify, onSignOut, onR
                      </div>
                      <div className="flex justify-between items-end">
                         <div>
-                          <p className="font-black text-slate-900 dark:text-white transition-colors">{tier.name}</p>
+                          <p className="font-black text-slate-900 dark:text-white">{tier.name}</p>
                           <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Daily Outflow</p>
                         </div>
                         <p className="font-black text-blue-600 dark:text-blue-400 text-sm">{tier.limit}</p>
@@ -123,12 +124,19 @@ const Profile: React.FC<ProfileProps> = ({ user, setUser, notify, onSignOut, onR
 
         <div className="space-y-6">
            <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 border border-slate-100 dark:border-slate-800 shadow-sm space-y-6 transition-colors">
-              <h3 className="font-black text-lg text-slate-900 dark:text-white italic tracking-tight">Secure Perimeter</h3>
+              <h3 className="font-black text-lg text-slate-900 dark:text-white italic tracking-tight">Appearance & Security</h3>
               <div className="space-y-2">
-                 <SecurityItem icon="🔑" label="Change Transaction PIN" />
-                 <SecurityItem icon="📵" label="Link Device ID" />
-                 <SecurityItem icon="📧" label="OTP for Transfers" checked={true} />
-                 <SecurityItem icon="🛡️" label="NDIC Insurance" status="Covered" />
+                 {toggleDarkMode && (
+                   <SecurityItem 
+                     icon={isDarkMode ? '🌞' : '🌙'} 
+                     label="Dark Mode" 
+                     checked={isDarkMode} 
+                     onClick={toggleDarkMode}
+                   />
+                 )}
+                 <SecurityItem icon="🔑" label="Transaction PIN" />
+                 <SecurityItem icon="📵" label="Biometric Link" />
+                 <SecurityItem icon="🛡️" label="Fraud Protection" status="Active" />
               </div>
            </div>
 
@@ -143,7 +151,7 @@ const Profile: React.FC<ProfileProps> = ({ user, setUser, notify, onSignOut, onR
                onClick={onReset}
                className="w-full py-5 bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 rounded-[2rem] font-black uppercase tracking-widest text-[9px] border border-rose-100 dark:border-rose-900/30 tap-scale"
              >
-               WIPE DEVICE DATA
+               WIPE ALL DATA
              </button>
            </div>
         </div>
@@ -152,8 +160,11 @@ const Profile: React.FC<ProfileProps> = ({ user, setUser, notify, onSignOut, onR
   );
 };
 
-const SecurityItem = ({ icon, label, checked, status }: { icon: string, label: string, checked?: boolean, status?: string }) => (
-  <div className="flex items-center justify-between py-3.5 px-1 hover:bg-slate-50 dark:hover:bg-slate-800/30 rounded-xl transition-colors cursor-pointer group">
+const SecurityItem = ({ icon, label, checked, status, onClick }: { icon: string, label: string, checked?: boolean, status?: string, onClick?: () => void }) => (
+  <div 
+    className="flex items-center justify-between py-3.5 px-1 hover:bg-slate-50 dark:hover:bg-slate-800/30 rounded-xl transition-colors cursor-pointer group"
+    onClick={onClick}
+  >
     <div className="flex items-center gap-3">
        <span className="text-xl group-hover:scale-110 transition-transform">{icon}</span>
        <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{label}</span>

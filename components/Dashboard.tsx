@@ -129,8 +129,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, notify, processTra
           <button onClick={() => navigate('/dom-accounts')} className="text-[10px] font-black text-blue-700 dark:text-blue-400 uppercase tracking-widest hover:opacity-70 transition-opacity">Explore Global Hub →</button>
         </div>
 
-        {/* REFINED PADDING AND OVERFLOW FOR MOBILE PORTRAIT */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-blue-900 via-indigo-900 to-purple-900 rounded-[2.5rem] md:rounded-[3rem] px-4 xs:px-6 py-8 md:p-12 text-white shadow-2xl transition-all group">
+        <div className="relative overflow-hidden bg-gradient-to-br from-blue-900 via-indigo-900 to-purple-900 rounded-[2.5rem] md:rounded-[3rem] px-5 py-8 md:p-12 text-white shadow-2xl transition-all group">
           <div className="relative z-10 space-y-8 md:space-y-12">
             <div className="flex justify-between items-center gap-3">
               <div className="space-y-4 flex-1 min-w-0">
@@ -146,9 +145,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, notify, processTra
                       </button>
                     ))}
                   </div>
-                  {/* Watermark Logo for Visibility */}
+                  {/* Card Logo for Branding */}
                   <div className="opacity-40 scale-75 origin-left">
-                    <PayMomentLogo className="w-8 h-8" idSuffix="dashboard-card" />
+                    <PayMomentLogo className="w-8 h-8" idSuffix="balance-card" />
                   </div>
                 </div>
                 <h2 className="text-3xl xs:text-4xl md:text-7xl font-black tracking-tighter flex items-baseline gap-1 tabular-nums truncate leading-none">
@@ -185,13 +184,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, notify, processTra
             </div>
           </div>
           <div className="absolute -bottom-10 -right-10 opacity-5 rotate-12 scale-150 pointer-events-none">
-             <PayMomentLogo className="w-64 h-64" idSuffix="watermark-dashboard" />
+             <PayMomentLogo className="w-64 h-64" idSuffix="dashboard-watermark" />
           </div>
           <div className="absolute top-[-40px] right-[-40px] w-96 h-96 bg-white/10 rounded-full blur-[120px]"></div>
         </div>
       </div>
 
-      {/* QUICK ACCESS GRID: 2 ROWS of 4 ON MOBILE PORTRAIT, 1 ROW ON LANDSCAPE/MD */}
+      {/* QUICK ACCESS GRID: 4 COLUMNS ON PORTRAIT (2 ROWS), 8 ON LANDSCAPE/MD */}
       <div className="grid grid-cols-4 md:grid-cols-8 gap-2 px-1">
         <QuickButton onClick={() => navigate('/transfer')} icon="💸" label="Send" color="bg-blue-600" />
         <QuickButton onClick={() => navigate('/bills')} icon="📱" label="Bills" color="bg-purple-600" />
@@ -203,7 +202,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, notify, processTra
         <QuickButton onClick={() => setShowFundModal(true)} icon="➕" label="Top Up" color="bg-slate-900 dark:bg-slate-800" />
       </div>
 
-      {/* Transaction History Preview */}
+      {/* Recent History Preview */}
       <div className="space-y-4">
         <div className="flex justify-between items-center px-2">
           <p className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Recent Activity</p>
@@ -225,7 +224,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, notify, processTra
                       <p className="font-black text-slate-900 dark:text-white transition-colors text-sm">{tx.title}</p>
                       <div className="flex items-center gap-3 mt-1">
                         <span className={`text-[8px] px-2 py-0.5 rounded font-black uppercase tracking-widest ${tx.status === 'recovery_active' ? 'bg-amber-100 text-amber-600' : tx.type === 'credit' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
-                          {tx.status === 'recovery_active' ? 'Wrong Transfer Recovery' : tx.category}
+                          {tx.status === 'recovery_active' ? 'Recovery Active' : tx.category}
                         </span>
                         <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">{tx.timestamp.split(',')[0]}</span>
                       </div>
@@ -296,7 +295,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setUser, notify, processTra
                   disabled={isFunding}
                   className="w-full py-5 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-2xl font-black uppercase tracking-widest text-[10px] tap-scale disabled:opacity-50"
                 >
-                  {isFunding ? 'Simulating Incoming Wire...' : 'Demo: Simulate ₦50k Transfer'}
+                  {isFunding ? 'Simulating Wire...' : 'Demo: Simulate ₦50k Transfer'}
                 </button>
               </div>
            </div>
