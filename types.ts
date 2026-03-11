@@ -49,6 +49,9 @@ export interface Beneficiary {
     iban?: string;
     swift?: string;
     currency?: string;
+    // Added missing properties to fix type errors in Transfer and InternationalTransfer components
+    address?: string;
+    payMomentId?: string;
   };
 }
 
@@ -86,6 +89,7 @@ export interface User {
   investments: Investment[];
   badges: Badge[];
   debtInfo?: DebtInfo; // New: Tracking for wrong transfer resolution
+  transactionPin?: string; // Secure 4-digit PIN
 }
 
 export interface BillCategory {

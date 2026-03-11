@@ -1,5 +1,5 @@
 
-import React, { useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User } from '../types';
 import { UserAvatar } from '../App';
@@ -23,6 +23,8 @@ const TIER_BENEFITS = [
 const Profile: React.FC<ProfileProps> = ({ user, setUser, notify, onSignOut, onReset, isDarkMode, toggleDarkMode }) => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [show2faReset, setShow2faReset] = useState(false);
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
 
   const handleCopy = (val: string) => {
     navigator.clipboard.writeText(val);
@@ -38,6 +40,28 @@ const Profile: React.FC<ProfileProps> = ({ user, setUser, notify, onSignOut, onR
         notify("Profile picture updated!", "success");
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const startWipeProcess = () => {
+    notify("Reset verification required.", "info");
+    setShow2faReset(true);
+  };
+
+  const handleOtpChange = (index: number, val: string) => {
+    if (val.length > 1) return;
+    const newOtp = [...otp];
+    newOtp[index] = val;
+    setOtp(newOtp);
+
+    if (val && index < 5) {
+      const nextInput = document.getElementById(`otp-reset-${index + 1}`);
+      nextInput?.focus();
+    }
+
+    if (newOtp.every(d => d !== '')) {
+      setShow2faReset(false);
+      onReset();
     }
   };
 
@@ -90,10 +114,6 @@ const Profile: React.FC<ProfileProps> = ({ user, setUser, notify, onSignOut, onR
                     </button>
                  </div>
               </div>
-              <div className="p-5 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700">
-                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Partner Bank</p>
-                 <span className="text-sm font-bold text-slate-900 dark:text-white">PayMoment Bank (Wema)</span>
-              </div>
             </div>
           </div>
 
@@ -112,7 +132,6 @@ const Profile: React.FC<ProfileProps> = ({ user, setUser, notify, onSignOut, onR
                      <div className="flex justify-between items-end">
                         <div>
                           <p className="font-black text-slate-900 dark:text-white">{tier.name}</p>
-                          <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Daily Outflow</p>
                         </div>
                         <p className="font-black text-blue-600 dark:text-blue-400 text-sm">{tier.limit}</p>
                      </div>
@@ -124,7 +143,7 @@ const Profile: React.FC<ProfileProps> = ({ user, setUser, notify, onSignOut, onR
 
         <div className="space-y-6">
            <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 border border-slate-100 dark:border-slate-800 shadow-sm space-y-6 transition-colors">
-              <h3 className="font-black text-lg text-slate-900 dark:text-white italic tracking-tight">Appearance & Security</h3>
+              <h3 className="font-black text-lg text-slate-900 dark:text-white italic tracking-tight">Settings</h3>
               <div className="space-y-2">
                  {toggleDarkMode && (
                    <SecurityItem 
@@ -135,36 +154,47 @@ const Profile: React.FC<ProfileProps> = ({ user, setUser, notify, onSignOut, onR
                    />
                  )}
                  <SecurityItem icon="🔑" label="Transaction PIN" />
-                 <SecurityItem icon="📵" label="Biometric Link" />
                  <SecurityItem icon="🛡️" label="Fraud Protection" status="Active" />
               </div>
            </div>
 
            <div className="space-y-4">
-             <button 
-               onClick={onSignOut}
-               className="w-full py-5 bg-blue-600 text-white rounded-[2rem] font-black uppercase tracking-widest text-xs shadow-xl tap-scale"
-             >
-               LOGOUT
-             </button>
-             <button 
-               onClick={onReset}
-               className="w-full py-5 bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 rounded-[2rem] font-black uppercase tracking-widest text-[9px] border border-rose-100 dark:border-rose-900/30 tap-scale"
-             >
-               WIPE ALL DATA
-             </button>
+             <button onClick={onSignOut} className="w-full py-5 bg-blue-600 text-white rounded-[2rem] font-black uppercase tracking-widest text-xs shadow-xl tap-scale">LOGOUT</button>
+             <button onClick={startWipeProcess} className="w-full py-5 bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 rounded-[2rem] font-black uppercase tracking-widest text-[9px] border border-rose-100 dark:border-rose-900/30 tap-scale">WIPE ALL DATA</button>
            </div>
         </div>
       </div>
+
+      {show2faReset && (
+        <div className="fixed inset-0 z-[400] bg-slate-950/98 backdrop-blur-2xl flex flex-col items-center justify-center p-6 animate-in fade-in duration-300">
+           <div className="w-full max-w-md text-center space-y-10">
+              <div className="space-y-2">
+                <h2 className="text-3xl font-black text-white italic tracking-tighter">Confirm Identity</h2>
+                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">A security code was sent to wipe this session's data.</p>
+              </div>
+              <div className="flex justify-center gap-3">
+                 {otp.map((digit, i) => (
+                   <input 
+                     key={i}
+                     id={`otp-reset-${i}`}
+                     type="text"
+                     maxLength={1}
+                     value={digit}
+                     onChange={(e) => handleOtpChange(i, e.target.value)}
+                     className="w-12 h-16 bg-white/5 border-2 border-white/10 rounded-2xl text-center text-2xl font-black text-white outline-none focus:border-blue-500 transition-all"
+                   />
+                 ))}
+              </div>
+              <button onClick={() => setShow2faReset(false)} className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Cancel</button>
+           </div>
+        </div>
+      )}
     </div>
   );
 };
 
 const SecurityItem = ({ icon, label, checked, status, onClick }: { icon: string, label: string, checked?: boolean, status?: string, onClick?: () => void }) => (
-  <div 
-    className="flex items-center justify-between py-3.5 px-1 hover:bg-slate-50 dark:hover:bg-slate-800/30 rounded-xl transition-colors cursor-pointer group"
-    onClick={onClick}
-  >
+  <div className="flex items-center justify-between py-3.5 px-1 hover:bg-slate-50 dark:hover:bg-slate-800/30 rounded-xl transition-colors cursor-pointer group" onClick={onClick}>
     <div className="flex items-center gap-3">
        <span className="text-xl group-hover:scale-110 transition-transform">{icon}</span>
        <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{label}</span>

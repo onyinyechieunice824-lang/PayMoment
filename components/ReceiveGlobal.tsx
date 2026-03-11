@@ -41,10 +41,10 @@ const ACCOUNTS = [
 
 const ReceiveGlobal: React.FC<ReceiveGlobalProps> = ({ user, setUser, notify }) => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'ID' | 'UNIVERSAL' | 'DOM'>('ID');
+  const [activeTab, setActiveTab] = useState<'ID' | 'PAYLINK' | 'DOM'>('ID');
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Universal Link Creator State
+  // PayLink Creator State
   const [linkTitle, setLinkTitle] = useState('');
   const [linkAmount, setLinkAmount] = useState('');
 
@@ -53,7 +53,7 @@ const ReceiveGlobal: React.FC<ReceiveGlobalProps> = ({ user, setUser, notify }) 
     notify("Link copied! Share it anywhere.", 'success');
   };
 
-  const createUniversalLink = () => {
+  const createPayLink = () => {
     if (!linkTitle.trim()) {
       notify("Please give your link a title.", "error");
       return;
@@ -65,7 +65,7 @@ const ReceiveGlobal: React.FC<ReceiveGlobalProps> = ({ user, setUser, notify }) 
         id: Math.random().toString(36).substr(2, 9),
         slug,
         title: linkTitle,
-        amount: linkAmount ? parseFloat(linkAmount) : null,
+        amount: linkAmount ? parseFloat(linkAmount.replace(/,/g, '')) : null,
         visits: 0,
         completions: 0,
         createdAt: new Date().toISOString().split('T')[0]
@@ -130,7 +130,7 @@ const ReceiveGlobal: React.FC<ReceiveGlobalProps> = ({ user, setUser, notify }) 
       {/* TABS */}
       <div className="flex bg-white dark:bg-slate-900 p-2 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-lg transition-colors overflow-x-auto no-scrollbar">
         <button onClick={() => setActiveTab('ID')} className={`flex-1 py-3 px-6 rounded-[2rem] text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${activeTab === 'ID' ? 'bg-blue-600 text-white shadow-xl' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'}`}>Local ID</button>
-        <button onClick={() => setActiveTab('UNIVERSAL')} className={`flex-1 py-3 px-6 rounded-[2rem] text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${activeTab === 'UNIVERSAL' ? 'bg-purple-600 text-white shadow-xl' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'}`}>Invoicing</button>
+        <button onClick={() => setActiveTab('PAYLINK')} className={`flex-1 py-3 px-6 rounded-[2rem] text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${activeTab === 'PAYLINK' ? 'bg-purple-600 text-white shadow-xl' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'}`}>PayLink Hub</button>
         <button onClick={() => setActiveTab('DOM')} className={`flex-1 py-3 px-6 rounded-[2rem] text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${activeTab === 'DOM' ? 'bg-emerald-600 text-white shadow-xl' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'}`}>Intl Bank</button>
       </div>
 
@@ -144,7 +144,6 @@ const ReceiveGlobal: React.FC<ReceiveGlobalProps> = ({ user, setUser, notify }) 
 
               <div className="relative p-8 bg-slate-50 dark:bg-slate-800 rounded-[3rem] border-2 border-slate-100 dark:border-slate-700 shadow-inner group">
                  <div className="w-48 h-48 bg-white rounded-2xl flex items-center justify-center p-4">
-                    {/* Simulated QR Pattern */}
                     <div className="w-full h-full border-4 border-slate-900 flex items-center justify-center relative">
                        <div className="grid grid-cols-4 gap-2">
                           {[...Array(16)].map((_, i) => (
@@ -210,29 +209,21 @@ const ReceiveGlobal: React.FC<ReceiveGlobalProps> = ({ user, setUser, notify }) 
                       </div>
                     ))}
                 </div>
-                
                 <div className={`absolute -right-10 -top-10 w-40 h-40 rounded-full blur-3xl opacity-10 pointer-events-none ${
                   account.theme === 'blue' ? 'bg-blue-600' : 'bg-purple-600'
                 }`}></div>
               </div>
             ))}
           </div>
-          
-          <div className="bg-blue-50 dark:bg-blue-900/20 p-8 rounded-[2.5rem] border border-blue-200 dark:border-blue-800/40 flex gap-6 items-center shadow-inner">
-             <div className="w-14 h-14 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-3xl shadow-sm border border-slate-100 dark:border-slate-700 shrink-0">💡</div>
-             <p className="text-[10px] font-bold text-blue-900 dark:text-blue-300 uppercase tracking-widest leading-relaxed">
-               Incoming global transfers settle into your wallet within <span className="font-black">24-48 hours</span>. Use these details for SWIFT or local transfers in {activeTab} regions.
-             </p>
-          </div>
         </div>
       )}
 
-      {activeTab === 'UNIVERSAL' && (
+      {activeTab === 'PAYLINK' && (
         <div className="space-y-8 animate-in slide-in-from-bottom-4">
           <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-10 border border-slate-200 dark:border-slate-800 shadow-xl space-y-8 transition-colors">
             <div>
-               <h3 className="text-2xl font-black italic tracking-tighter text-slate-900 dark:text-white leading-none">Invoicing Hub</h3>
-               <p className="text-[10px] font-black text-purple-600 dark:text-purple-400 uppercase tracking-widest mt-2">Request Funds Professionally</p>
+               <h3 className="text-2xl font-black italic tracking-tighter text-slate-900 dark:text-white leading-none">PayLink Hub</h3>
+               <p className="text-[10px] font-black text-purple-600 dark:text-purple-400 uppercase tracking-widest mt-2">Professional Universal Invoicing</p>
             </div>
 
             <div className="grid gap-6">
@@ -242,45 +233,45 @@ const ReceiveGlobal: React.FC<ReceiveGlobalProps> = ({ user, setUser, notify }) 
                     type="text" 
                     value={linkTitle}
                     onChange={(e) => setLinkTitle(e.target.value)}
-                    placeholder="e.g. Graphic Design Project"
-                    className="w-full p-5 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-2xl focus:border-purple-500 outline-none font-bold text-slate-900 dark:text-white transition-all placeholder:text-slate-300"
+                    placeholder="e.g. Logo Design, Event Tickets"
+                    className="w-full p-5 bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-2xl focus:border-purple-500 outline-none font-bold text-slate-900 dark:text-white transition-all placeholder:text-slate-300"
                   />
                </div>
                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest px-1">Amount to Pay (Optional)</label>
+                  <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest px-1">Fixed Amount (Optional)</label>
                   <div className="relative">
                     <span className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-slate-400 text-lg">₦</span>
                     <input 
-                      type="number" 
+                      type="text" 
                       value={linkAmount}
-                      onChange={(e) => setLinkAmount(e.target.value)}
+                      onChange={(e) => setLinkAmount(e.target.value.replace(/[^0-9.]/g, ''))}
                       placeholder="0.00"
-                      className="w-full p-5 pl-10 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-2xl focus:border-purple-500 outline-none font-black text-2xl text-slate-900 dark:text-white transition-all placeholder:text-slate-300"
+                      className="w-full p-5 pl-10 bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-2xl focus:border-purple-500 outline-none font-black text-2xl text-slate-900 dark:text-white transition-all placeholder:text-slate-300"
                     />
                   </div>
                </div>
             </div>
 
             <button 
-              onClick={createUniversalLink}
+              onClick={createPayLink}
               disabled={isGenerating || !linkTitle}
               className="w-full py-6 bg-purple-600 text-white rounded-[2rem] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
             >
-              {isGenerating ? 'Deploying...' : 'Generate Invoice'}
+              {isGenerating ? 'Deploying Engine...' : 'Generate PayLink'}
             </button>
           </div>
 
           <div className="space-y-4">
-             <h4 className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest px-2">Active PayLinks</h4>
+             <h4 className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest px-2">Manage PayLinks</h4>
              {(!user.paymentLinks || user.paymentLinks.length === 0) ? (
                <div className="p-20 text-center bg-white dark:bg-slate-900 rounded-[3rem] border-2 border-dashed border-slate-200 dark:border-slate-800 text-slate-400 italic font-bold">No active links found.</div>
              ) : (
                user.paymentLinks.map(link => (
-                 <div key={link.id} className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-md space-y-6 group transition-all hover:shadow-xl">
+                 <div key={link.id} className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-md space-y-6 group transition-all hover:shadow-xl">
                     <div className="flex justify-between items-start">
                        <div>
                           <h5 className="font-black text-lg text-slate-900 dark:text-white leading-none">{link.title}</h5>
-                          <p className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mt-2">paymoment.me/pay/{user.payMomentId}/{link.slug}</p>
+                          <p className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mt-2 truncate max-w-[200px] md:max-w-none">paymoment.me/pay/{user.payMomentId}/{link.slug}</p>
                        </div>
                        <button 
                         onClick={() => handleCopy(`https://paymoment.me/#/pay/${user.payMomentId}/${link.slug}`)}
@@ -291,9 +282,9 @@ const ReceiveGlobal: React.FC<ReceiveGlobalProps> = ({ user, setUser, notify }) 
                     </div>
 
                     <div className="grid grid-cols-3 gap-4 pt-5 border-t border-slate-100 dark:border-slate-800">
-                       <Metric label="Clicks" value={link.visits} />
+                       <Metric label="Visits" value={link.visits} />
                        <Metric label="Sales" value={link.completions} />
-                       <Metric label="Earnings" value={`₦${((link.completions * (link.amount || 0))).toLocaleString()}`} />
+                       <Metric label="Rev." value={`₦${((link.completions * (link.amount || 0))).toLocaleString()}`} />
                     </div>
                  </div>
                ))
@@ -308,7 +299,7 @@ const ReceiveGlobal: React.FC<ReceiveGlobalProps> = ({ user, setUser, notify }) 
 const Metric = ({ label, value }: { label: string, value: string | number }) => (
   <div className="text-center">
      <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-     <p className="text-lg font-black text-slate-900 dark:text-white tabular-nums leading-none tracking-tight">{value}</p>
+     <p className="text-sm md:text-lg font-black text-slate-900 dark:text-white tabular-nums leading-none tracking-tight">{value}</p>
   </div>
 );
 

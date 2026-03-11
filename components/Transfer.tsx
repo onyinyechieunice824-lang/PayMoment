@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { NIGERIAN_BANKS } from '../constants';
 import { User, Beneficiary, Transaction } from '../types';
@@ -14,12 +14,12 @@ interface TransferProps {
 
 const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTransaction }) => {
   const navigate = useNavigate();
-  const [step, setStep] = useState<'details' | 'confirm' | 'authorize' | 'success'>('details');
+  const hiddenInputRef = useRef<HTMLInputElement>(null);
+  const [step, setStep] = useState<'details' | 'confirm' | 'authorize' | 'otp' | 'success'>('details');
   const [type, setType] = useState<'bank' | 'paymoment'>('bank');
   const [payMomentMethod, setPayMomentMethod] = useState<'username' | 'account'>('username');
   const [authMode, setAuthMode] = useState<'pin' | 'biometric'>('pin');
-  const [authStatus, setAuthStatus] = useState<'idle' | 'verifying'>('idle');
-  const [sharingStatus, setSharingStatus] = useState<'idle' | 'generating'>('idle');
+  const [authStatus, setAuthStatus] = useState<'idle' | 'verifying' | 'error'>('idle');
   
   const [bank, setBank] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
@@ -29,17 +29,18 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
   const [verifying, setVerifying] = useState(false);
   const [verifiedName, setVerifiedName] = useState('');
   const [pin, setPin] = useState('');
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [lastTxId, setLastTxId] = useState('');
 
-  // Enhanced Formatter for 1,000.00
+  const [saveAsBeneficiary, setSaveAsBeneficiary] = useState(false);
+  const [beneficiaryNickname, setBeneficiaryNickname] = useState('');
+
   const handleAmountChange = (val: string) => {
     let clean = val.replace(/[^0-9.]/g, '');
     const parts = clean.split('.');
     if (parts.length > 2) clean = parts[0] + '.' + parts.slice(1).join('');
-    
     const integerPart = parts[0];
     const decimalPart = parts[1];
-
     const formattedInt = integerPart ? parseInt(integerPart, 10).toLocaleString() : '';
     let result = formattedInt;
     if (clean.includes('.')) {
@@ -50,19 +51,13 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
 
   const getRawAmount = () => parseFloat(amount.replace(/,/g, '')) || 0;
 
-  // Get recipient account for receipt logic
-  const currentRecipientAcc = type === 'bank' ? accountNumber : (payMomentMethod === 'account' ? payMomentValue : 'PayMoment ID');
-
-  // INSTANT NAME CONFIRMATION ENGINE
   useEffect(() => {
     let isVerifying = false;
     let mockName = '';
-
     if (type === 'bank' && accountNumber.length === 10 && bank) {
       isVerifying = true;
       mockName = 'AGUA EBUBECHUKWU SAMUEL';
-    } 
-    else if (type === 'paymoment') {
+    } else if (type === 'paymoment') {
       if (payMomentMethod === 'username' && payMomentValue.length >= 3) {
         isVerifying = true;
         mockName = `AGUA EBUBECHUKWU SAMUEL (@${payMomentValue})`;
@@ -71,14 +66,10 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
         mockName = `AGUA EBUBECHUKWU SAMUEL (@agua_pay)`;
       }
     }
-
     if (isVerifying) {
       setVerifying(true);
       setVerifiedName('');
-      const timer = setTimeout(() => {
-        setVerifying(false);
-        setVerifiedName(mockName);
-      }, 800);
+      const timer = setTimeout(() => { setVerifying(false); setVerifiedName(mockName); }, 800);
       return () => clearTimeout(timer);
     } else {
       setVerifying(false);
@@ -86,106 +77,21 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
     }
   }, [accountNumber, bank, type, payMomentMethod, payMomentValue]);
 
-  const generateReceiptCanvas = async () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 800;
-    canvas.height = 1200; 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, 800, 1200);
-    ctx.fillStyle = '#1E3A8A';
-    ctx.fillRect(0, 0, 800, 180);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'italic 900 60px Inter, sans-serif';
-    ctx.fillText('PayMoment', 60, 110);
-    ctx.font = 'bold 16px Inter, sans-serif';
-    ctx.fillText('OFFICIAL TRANSACTION RECEIPT', 60, 145);
-    ctx.fillStyle = '#f1f5f9';
-    ctx.fillRect(60, 220, 680, 200);
-    ctx.fillStyle = '#64748b';
-    ctx.font = 'bold 20px Inter, sans-serif';
-    ctx.fillText('AMOUNT TRANSFERRED', 90, 270);
-    ctx.fillStyle = '#0f172a';
-    ctx.font = '900 70px Inter, sans-serif';
-    ctx.fillText(`NGN ${amount}`, 90, 360);
-
-    let y = 500;
-    const drawRow = (label: string, value: string) => {
-      ctx.fillStyle = '#64748b';
-      ctx.font = 'bold 20px Inter, sans-serif';
-      ctx.fillText(label.toUpperCase(), 60, y);
-      ctx.fillStyle = '#0f172a';
-      ctx.font = '800 24px Inter, sans-serif';
-      ctx.fillText(value, 320, y);
-      y += 80;
-    };
-
-    drawRow('Sender Name', user.name);
-    drawRow('Recipient Account', currentRecipientAcc);
-    drawRow('Recipient Name', verifiedName || 'N/A');
-    drawRow('Bank', type === 'bank' ? bank : 'PayMoment Internal');
-    drawRow('Remark', remark || 'N/A');
-    drawRow('Reference', `PM-${lastTxId.toUpperCase()}`);
-    drawRow('Date', new Date().toLocaleString());
-    drawRow('Status', 'SUCCESSFUL');
-    ctx.fillStyle = '#1E3A8A';
-    ctx.fillRect(60, 1140, 680, 4);
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = 'italic bold 18px Inter, sans-serif';
-    ctx.fillText('Thank you for choosing PayMoment. Secure, Fast, Global.', 60, 1180);
-    return canvas.toDataURL('image/png');
-  };
-
-  const handleShare = async (mode: 'link' | 'image' | 'pdf') => {
-    const summary = `PayMoment Receipt\nSender: ${user.name}\nTo: ${verifiedName}\nAcc: ${currentRecipientAcc}\nAmount: ₦${amount}\nRemark: ${remark}\nRef: PM-${lastTxId.toUpperCase()}`;
-    if (mode === 'pdf') {
-      window.print();
-      return;
-    }
-    setSharingStatus('generating');
-    if (mode === 'image') {
-      const dataUrl = await generateReceiptCanvas();
-      if (dataUrl) {
-        const blob = await (await fetch(dataUrl)).blob();
-        const file = new File([blob], `PayMoment-Receipt-${lastTxId}.png`, { type: 'image/png' });
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          try { await navigator.share({ files: [file], title: 'PayMoment Receipt' }); } 
-          catch {
-            const link = document.createElement('a');
-            link.download = `PayMoment-Receipt-${lastTxId}.png`;
-            link.href = dataUrl;
-            link.click();
-          }
-        } else {
-          const link = document.createElement('a');
-          link.download = `PayMoment-Receipt-${lastTxId}.png`;
-          link.href = dataUrl;
-          link.click();
-        }
-      }
-      setSharingStatus('idle');
-      notify("Image generated successfully", "success");
-    } else if (mode === 'link') {
-      if (navigator.share) {
-        try { await navigator.share({ title: 'PayMoment Receipt', text: summary, url: window.location.origin }); } 
-        catch { navigator.clipboard.writeText(summary); notify("Details copied to clipboard", "info"); }
-      } else {
-        navigator.clipboard.writeText(summary);
-        notify("Details copied to clipboard", "info");
-      }
-      setSharingStatus('idle');
+  const selectBeneficiary = (b: Beneficiary) => {
+    if (b.type === 'local') {
+      setType('bank');
+      setBank(b.details.bank || '');
+      setAccountNumber(b.details.accountNumber || '');
     }
   };
 
   const handleTransferRequest = () => {
-    const numericAmount = getRawAmount();
-    if (!amount || isNaN(numericAmount) || numericAmount <= 0) {
+    const val = getRawAmount();
+    if (!amount || val <= 0) {
       notify("Please enter a valid amount", "error");
       return;
     }
-    if (numericAmount > user.balances['NGN']) {
+    if (val > user.balances['NGN']) {
       notify("Insufficient funds in Naira wallet", "error");
       return;
     }
@@ -196,281 +102,351 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
     if (pin.length < 4) {
       const newPin = pin + num;
       setPin(newPin);
-      if (newPin.length === 4) { finalizeTransfer(); }
+      if (newPin.length === 4) {
+        processFinalAuth(newPin);
+      }
     }
   };
 
-  const handleBiometricAuth = () => {
-    setAuthStatus('verifying');
-    setTimeout(() => {
-      setAuthStatus('idle');
+  const processFinalAuth = (currentPin: string) => {
+    // SECURITY CHECK: Verify Transaction PIN
+    if (currentPin !== user.transactionPin) {
+      setAuthStatus('error');
+      notify("Incorrect Transaction PIN", "error");
+      setTimeout(() => {
+        setPin('');
+        setAuthStatus('idle');
+      }, 1000);
+      return;
+    }
+
+    const val = getRawAmount();
+    if (val > 50000) {
+      notify("Large transfer detected. 2FA required.", "info");
+      setStep('otp');
+    } else {
       finalizeTransfer();
+    }
+  };
+
+  const handleHiddenInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+    setPin(val);
+    if (val.length === 4) {
+      processFinalAuth(val);
+    }
+  };
+
+  const handleOtpChange = (index: number, val: string) => {
+    if (val.length > 1) return;
+    const newOtp = [...otp];
+    newOtp[index] = val;
+    setOtp(newOtp);
+    if (val && index < 5) {
+      const nextInput = document.getElementById(`otp-${index + 1}`);
+      nextInput?.focus();
+    }
+    if (newOtp.every(d => d !== '')) {
+      finalizeTransfer();
+    }
+  };
+
+  const startBiometricAuth = () => {
+    setAuthStatus('verifying');
+    // Simulate biometric scan
+    setTimeout(() => {
+       const val = getRawAmount();
+       if (val > 50000) {
+          notify("Biometric verified. 2FA required for large amount.", "info");
+          setStep('otp');
+          setAuthStatus('idle');
+       } else {
+          finalizeTransfer();
+       }
     }, 1500);
   };
 
   const finalizeTransfer = () => {
-    const numericAmount = getRawAmount();
-    const txId = Math.random().toString(36).substr(2, 9);
-    setLastTxId(txId);
-    const tx: Transaction = {
-      id: txId,
-      type: 'debit',
-      amount: numericAmount,
-      title: `Transfer to ${verifiedName || accountNumber || payMomentValue}`,
-      category: 'Transfer',
-      timestamp: new Date().toLocaleString(),
-      status: 'completed',
-      remark: remark 
-    };
-    processTransaction(tx, 'NGN');
-    setStep('success');
-    notify(`₦${numericAmount.toLocaleString(undefined, {minimumFractionDigits: 2})} sent successfully!`, 'success');
+    setAuthStatus('verifying');
+    setTimeout(() => {
+      const numericAmount = getRawAmount();
+      const txId = Math.random().toString(36).substr(2, 9);
+      setLastTxId(txId);
+
+      if (saveAsBeneficiary && verifiedName) {
+        const existing = user.beneficiaries.find(b => 
+          (type === 'bank' && b.details.accountNumber === accountNumber) || 
+          (type === 'paymoment' && b.details.payMomentId === payMomentValue)
+        );
+        if (!existing) {
+          const newBen: Beneficiary = {
+            id: Math.random().toString(36).substr(2, 5),
+            name: beneficiaryNickname || verifiedName,
+            type: 'local',
+            details: {
+              bank: type === 'bank' ? bank : 'PayMoment',
+              accountNumber: type === 'bank' ? accountNumber : payMomentValue,
+            }
+          };
+          setUser({ ...user, beneficiaries: [newBen, ...user.beneficiaries] });
+        }
+      }
+
+      const tx: Transaction = {
+        id: txId,
+        type: 'debit',
+        amount: numericAmount,
+        title: `Transfer to ${verifiedName || accountNumber || payMomentValue}`,
+        category: 'Transfer',
+        timestamp: new Date().toLocaleString(),
+        status: 'completed',
+        remark: remark 
+      };
+      processTransaction(tx, 'NGN');
+      setAuthStatus('idle');
+      setStep('success');
+      notify(`Sent successfully!`, 'success');
+    }, 1800);
   };
 
   if (step === 'success') {
     return (
-      <div className="flex flex-col items-center justify-center space-y-8 py-12 animate-in zoom-in-95 duration-500">
-        <div className="no-print w-28 h-28 bg-emerald-500 dark:bg-emerald-600 rounded-full flex items-center justify-center text-5xl shadow-2xl shadow-emerald-500/40 animate-bounce">✅</div>
+      <div className="flex flex-col items-center justify-center space-y-8 py-12 animate-in zoom-in-95 duration-500 px-4">
+        <div className="no-print w-24 h-24 md:w-28 md:h-28 bg-emerald-500 rounded-full flex items-center justify-center text-4xl md:text-5xl shadow-2xl animate-bounce">✅</div>
         <div className="text-center space-y-2 no-print">
-          <h2 className="text-3xl font-black text-slate-900 dark:text-white transition-colors tracking-tight italic">Transfer Successful!</h2>
-          <p className="text-slate-600 dark:text-slate-400 font-bold text-lg">₦{amount}</p>
-          <p className="text-slate-500 dark:text-slate-500 text-sm font-medium">Recipient: {verifiedName || 'the recipient'}.</p>
+          <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white italic tracking-tight">Success!</h2>
+          <p className="text-slate-600 dark:text-slate-400 font-bold text-xl md:text-2xl">₦{amount}</p>
         </div>
-        <div className="print-container bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[2.5rem] border-2 border-slate-100 dark:border-slate-800 shadow-xl w-full max-w-sm space-y-8 transition-colors">
+        <div className="print-container bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[2.5rem] border-2 border-slate-100 dark:border-slate-800 shadow-xl w-full max-w-sm space-y-8">
            <div className="flex flex-col items-center gap-4 pb-6 border-b border-dashed border-slate-200 dark:border-slate-700">
-              <PayMomentLogo className="w-16 h-16" idSuffix="success-receipt" />
+              <PayMomentLogo className="w-14 h-14 md:w-16 md:h-16" />
               <div className="text-center">
                  <h4 className="font-black italic text-xl text-blue-800 dark:text-white tracking-tighter">PayMoment Official</h4>
-                 <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Transaction Authorization Token</p>
+                 <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Authorization Token</p>
               </div>
            </div>
-           <div className="space-y-3 md:space-y-4">
+           <div className="space-y-3">
               <ReceiptDetailRow label="Sender" value={user.name} />
-              <ReceiptDetailRow label="Recipient Acc" value={currentRecipientAcc} isMono />
               <ReceiptDetailRow label="Recipient" value={verifiedName} />
               <ReceiptDetailRow label="Amount" value={`₦${amount}`} />
-              <ReceiptDetailRow label="Remark" value={remark || 'None'} />
               <ReceiptDetailRow label="Ref" value={`PM-${lastTxId.toUpperCase()}`} isMono />
               <ReceiptDetailRow label="Status" value="SUCCESSFUL" />
-              <ReceiptDetailRow label="Time" value={new Date().toLocaleString()} />
-           </div>
-           <div className="hidden print:block pt-8 text-center border-t border-slate-100 mt-6 pt-6">
-              <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Verified digital document • Generated by PayMoment App</p>
            </div>
         </div>
-        <div className="no-print w-full max-w-sm space-y-6 pt-4 px-4">
-          <div className="grid grid-cols-3 gap-4">
-             <ShareActionButton icon="🔗" label="Link" color="bg-blue-600" onClick={() => handleShare('link')} disabled={sharingStatus === 'generating'} />
-             <ShareActionButton icon="🖼️" label="Image" color="bg-purple-600" onClick={() => handleShare('image')} disabled={sharingStatus === 'generating'} />
-             <ShareActionButton icon="📄" label="PDF" color="bg-emerald-600" onClick={() => handleShare('pdf')} disabled={sharingStatus === 'generating'} />
-          </div>
-          <button onClick={() => navigate('/')} className="w-full text-blue-600 dark:text-blue-400 font-black uppercase tracking-widest text-[11px] tap-scale underline underline-offset-4 decoration-2 text-center py-4">Return to Dashboard</button>
-        </div>
+        <button onClick={() => navigate('/')} className="no-print w-full max-w-sm py-5 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] tap-scale">Dashboard</button>
       </div>
     );
   }
 
-  if (step === 'authorize') {
+  // UPDATED PORTAL UI WITH EXPLICIT BOXES & AUTH LOGIC
+  if (step === 'authorize' || step === 'otp') {
     return (
-      <div className="fixed inset-0 z-[250] bg-slate-950/95 backdrop-blur-2xl flex flex-col items-center justify-center p-6 animate-in fade-in duration-300">
-        <div className="w-full max-w-md space-y-12">
-          <div className="text-center space-y-2">
-            <div className="w-20 h-20 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto border-2 border-blue-500/30 mb-6">
-              <span className="text-4xl">{authMode === 'pin' ? '🔐' : '🧬'}</span>
-            </div>
-            <h2 className="text-3xl font-black text-white italic tracking-tighter">Security Check</h2>
-            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Authorize ₦{amount}</p>
-          </div>
-          {authMode === 'pin' ? (
-            <div className="space-y-12">
-              <div className="flex justify-center gap-6">
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className={`w-5 h-5 rounded-full border-2 transition-all duration-300 ${pin.length > i ? 'bg-white border-white scale-125 shadow-[0_0_15px_white]' : 'border-white/20'}`} />
-                ))}
+      <div className="fixed-overlay bg-slate-950/98 backdrop-blur-3xl flex flex-col items-center animate-in fade-in duration-300">
+        <div className="w-full max-w-md flex-1 flex flex-col justify-start md:justify-center items-center py-12 px-6 gap-8 overflow-y-auto no-scrollbar">
+          {authStatus === 'verifying' ? (
+            <div className="flex flex-col items-center gap-8 animate-in zoom-in-95 my-auto">
+              <div className="relative">
+                <div className="w-24 h-24 border-8 border-white/10 border-t-blue-500 rounded-full animate-spin"></div>
+                <div className="absolute inset-0 flex items-center justify-center font-black text-blue-500 text-xl italic">PM</div>
               </div>
-              <div className="grid grid-cols-3 gap-6 max-w-xs mx-auto">
-                {['1','2','3','4','5','6','7','8','9','','0','del'].map((key, i) => (
-                  <button 
-                    key={i}
-                    onClick={() => {
-                      if (key === 'del') setPin(pin.slice(0, -1));
-                      else if (key && pin.length < 4) handlePinInput(key);
-                    }}
-                    className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black text-white transition-all ${key ? 'bg-white/5 border border-white/10 hover:bg-white/10 active:scale-90' : 'pointer-events-none'}`}
-                  >
-                    {key === 'del' ? '←' : key}
-                  </button>
-                ))}
-              </div>
+              <p className="text-sm font-black text-white uppercase tracking-[0.4em] animate-pulse">Routing Moment...</p>
             </div>
           ) : (
-            <div className="flex flex-col items-center space-y-10 py-10">
-               <button 
-                onClick={handleBiometricAuth}
-                disabled={authStatus === 'verifying'}
-                className={`w-32 h-32 rounded-full flex items-center justify-center transition-all duration-500 tap-scale relative ${authStatus === 'verifying' ? 'bg-blue-600/30' : 'bg-white/5 border-2 border-white/10'}`}
-               >
-                 <svg className={`w-16 h-16 ${authStatus === 'verifying' ? 'text-blue-400 animate-pulse' : 'text-white/40'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 0012 3m0 18a10.003 10.003 0 01-8.212-4.33l-.054-.09m9.158-11.154l-.054-.09A10.003 10.003 0 0012 20M3 12h18" />
-                 </svg>
-                 {authStatus === 'verifying' && <div className="absolute inset-0 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>}
-               </button>
-               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{authStatus === 'verifying' ? 'Scanning Fingerprint...' : 'Tap icon to use Touch ID'}</p>
+            <div className={`w-full space-y-8 md:space-y-12 animate-in slide-in-from-bottom-6 ${authStatus === 'error' ? 'animate-shake' : ''}`}>
+              <div className="text-center space-y-2">
+                <div className="w-16 h-16 md:w-20 md:h-20 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto border-2 border-blue-500/30 mb-2">
+                  <span className="text-3xl md:text-4xl">{step === 'otp' ? '📱' : (authMode === 'pin' ? '🔐' : '🧬')}</span>
+                </div>
+                <h2 className="text-2xl md:text-3xl font-black text-white italic tracking-tighter leading-none">
+                  {step === 'otp' ? 'Identity Proof' : (authMode === 'pin' ? 'Transaction PIN' : 'Biometric Auth')}
+                </h2>
+                <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-2">
+                  Confirm ₦{amount} to {verifiedName.split(' ')[0]}
+                </p>
+              </div>
+
+              {step === 'otp' ? (
+                <div className="space-y-10">
+                   <div className="flex justify-center gap-2 md:gap-3">
+                      {otp.map((digit, i) => (
+                        <input 
+                          key={i} id={`otp-${i}`} type="text" maxLength={1} value={digit}
+                          onChange={(e) => handleOtpChange(i, e.target.value)}
+                          className="w-11 h-14 md:w-14 md:h-20 bg-white/5 border-2 border-white/10 rounded-2xl text-center text-2xl font-black text-white focus:border-blue-500 outline-none transition-all"
+                        />
+                      ))}
+                   </div>
+                   <div className="text-center">
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-6 px-10">Verification required for high-value transfers.</p>
+                      <button onClick={() => setStep('confirm')} className="text-[10px] font-black text-rose-500 uppercase tracking-widest py-4 px-8 bg-white/5 rounded-full border border-white/10">Abort</button>
+                   </div>
+                </div>
+              ) : authMode === 'pin' ? (
+                <div className="space-y-8">
+                  <div className="flex flex-col items-center gap-6">
+                    <p className={`text-[9px] font-black uppercase tracking-[0.3em] ${authStatus === 'error' ? 'text-rose-500' : 'text-blue-400'}`}>
+                      {authStatus === 'error' ? 'Incorrect PIN, Try Again' : 'Enter 4-Digit Secure PIN'}
+                    </p>
+                    
+                    <div className="flex justify-center gap-3 md:gap-4" onClick={() => hiddenInputRef.current?.focus()}>
+                      {[...Array(4)].map((_, i) => (
+                        <div 
+                          key={i} 
+                          className={`w-14 h-16 md:w-16 md:h-20 rounded-2xl border-2 flex items-center justify-center transition-all duration-300 ${
+                            authStatus === 'error' ? 'border-rose-500 bg-rose-500/10' :
+                            pin.length === i ? 'border-blue-500 bg-blue-500/10 scale-110 shadow-[0_0_20px_rgba(59,130,246,0.3)]' : 
+                            pin.length > i ? 'border-white bg-white/10 scale-105' : 'border-white/10 bg-white/5'
+                          }`}
+                        >
+                          {pin.length > i ? (
+                             <span className="text-white text-3xl font-black">{pin[i]}</span>
+                          ) : pin.length === i ? (
+                             <div className="w-1 h-8 bg-blue-500 animate-pulse rounded-full"></div>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <input 
+                      ref={hiddenInputRef}
+                      type="tel" pattern="[0-9]*" inputMode="numeric"
+                      value={pin} onChange={handleHiddenInputChange}
+                      className="absolute opacity-0 pointer-events-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3 md:gap-6 max-w-[280px] md:max-w-[320px] mx-auto pt-4 pb-12">
+                    {['1','2','3','4','5','6','7','8','9','','0','del'].map((key, i) => (
+                      <button 
+                        key={i} 
+                        onClick={() => { 
+                          if (key === 'del') setPin(pin.slice(0, -1)); 
+                          else if (key && pin.length < 4) handlePinInput(key); 
+                        }} 
+                        className={`w-16 h-16 md:w-20 md:h-20 rounded-[2rem] flex items-center justify-center text-2xl font-black text-white transition-all shadow-sm ${
+                          key ? 'bg-white/10 border-2 border-white/10 active:bg-blue-600 active:border-blue-500 active:scale-90' : 'pointer-events-none'
+                        }`}
+                      >
+                        {key === 'del' ? '←' : key}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center space-y-12 py-10">
+                   <button 
+                    onClick={startBiometricAuth}
+                    disabled={authStatus === 'verifying'}
+                    className={`w-32 h-32 rounded-[2.5rem] flex items-center justify-center bg-white/5 border-2 transition-all tap-scale ${authStatus === 'verifying' ? 'border-blue-500 scale-110 shadow-[0_0_30px_rgba(59,130,246,0.2)]' : 'border-white/10 hover:bg-blue-600/20'}`}
+                   >
+                     <svg className={`w-16 h-16 ${authStatus === 'verifying' ? 'text-blue-400 animate-pulse' : 'text-white/40'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 0012 3m0 18a10.003 10.003 0 01-8.212-4.33l-.054-.09m9.158-11.154l-.054-.09A10.003 10.003 0 0012 20M3 12h18" />
+                     </svg>
+                   </button>
+                   <div className="text-center space-y-3">
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">{authStatus === 'verifying' ? 'Reading Fingerprint...' : 'Tap icon to Authenticate'}</p>
+                      <div className="flex justify-center gap-1">
+                        {[...Array(3)].map((_, i) => (
+                           <div key={i} className={`w-1 h-1 rounded-full bg-blue-500/40 ${authStatus === 'verifying' ? 'animate-bounce' : ''}`} style={{ animationDelay: `${i * 0.2}s` }}></div>
+                        ))}
+                      </div>
+                   </div>
+                </div>
+              )}
+              
+              {step !== 'otp' && (
+                <div className="flex flex-col gap-6 text-center pt-2">
+                  <button onClick={() => { setAuthMode(authMode === 'pin' ? 'biometric' : 'pin'); setPin(''); }} className="text-[10px] font-black text-blue-400 uppercase tracking-widest underline decoration-2 underline-offset-8">Switch Auth Method</button>
+                  <button onClick={() => setStep('confirm')} className="text-[10px] font-black text-rose-500 uppercase tracking-widest py-4 bg-white/5 border border-white/10 rounded-full mx-10">Back to Review</button>
+                </div>
+              )}
             </div>
           )}
-          <div className="flex flex-col gap-6 pt-10 text-center">
-            <button onClick={() => { setAuthMode(authMode === 'pin' ? 'biometric' : 'pin'); setPin(''); }} className="text-[10px] font-black text-blue-400 uppercase tracking-widest hover:text-blue-300 transition-colors">Switch to {authMode === 'pin' ? 'Fingerprint' : 'PIN'}</button>
-            <button onClick={() => setStep('confirm')} className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Cancel Authorization</button>
-          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="max-w-xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20 px-2">
       <button onClick={() => navigate(-1)} className="group flex items-center gap-2 text-slate-500 hover:text-blue-600 transition-colors tap-scale">
-        <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7"/></svg>
-        </div>
+        <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 transition-all"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7"/></svg></div>
         <span className="text-[10px] font-black uppercase tracking-widest">Back</span>
       </button>
 
-      <div className="flex items-end justify-between px-1">
-        <div>
-          <h2 className="text-4xl font-black italic tracking-tighter text-slate-900 dark:text-white leading-none">Send Money</h2>
-          <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] mt-2">Instant Wealth Mobility</p>
+      {user.beneficiaries.length > 0 && (
+        <div className="space-y-4">
+           <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Saved Beneficiaries</p>
+           <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2 px-1">
+              {user.beneficiaries.map(b => (
+                <button key={b.id} onClick={() => selectBeneficiary(b)} className="flex flex-col items-center gap-2 min-w-[80px] tap-scale group">
+                   <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-black text-xl shadow-lg group-hover:scale-110 transition-transform">{b.name.charAt(0)}</div>
+                   <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 truncate w-full text-center">{b.name.split(' ')[0]}</span>
+                </button>
+              ))}
+           </div>
         </div>
-        <div className="w-14 h-14 bg-blue-100 dark:bg-blue-900/20 rounded-[1.5rem] flex items-center justify-center text-3xl shadow-inner">💸</div>
-      </div>
+      )}
 
-      <div className="bg-slate-200 dark:bg-slate-800 p-2 rounded-[2.5rem] flex border-2 border-slate-300 dark:border-slate-700 shadow-md transition-colors overflow-hidden">
-        <button onClick={() => { setType('bank'); setVerifiedName(''); }} className={`flex-1 py-5 rounded-[2rem] text-[12px] font-black uppercase tracking-widest transition-all tap-scale ${type === 'bank' ? 'bg-blue-600 text-white shadow-2xl shadow-blue-500/50' : 'text-slate-500 dark:text-slate-400 hover:text-blue-600'}`}>Other Bank</button>
-        <button onClick={() => { setType('paymoment'); setVerifiedName(''); }} className={`flex-1 py-5 rounded-[2rem] text-[12px] font-black uppercase tracking-widest transition-all tap-scale ${type === 'paymoment' ? 'bg-purple-600 text-white shadow-2xl shadow-purple-500/50' : 'text-slate-500 dark:text-slate-400 hover:text-purple-600'}`}>PayMoment User</button>
-      </div>
+      <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 md:p-12 border-2 border-slate-300 dark:border-slate-700 shadow-2xl space-y-10">
+        <div className="bg-slate-200 dark:bg-slate-800 p-1.5 rounded-[2rem] flex border-2 border-slate-300 dark:border-slate-700 shadow-sm transition-colors">
+          <button onClick={() => { setType('bank'); setVerifiedName(''); }} className={`flex-1 py-4 rounded-[1.5rem] text-[11px] font-black uppercase tracking-widest transition-all ${type === 'bank' ? 'bg-blue-600 text-white shadow-xl' : 'text-slate-500 hover:text-blue-600'}`}>Other Bank</button>
+          <button onClick={() => { setType('paymoment'); setVerifiedName(''); }} className={`flex-1 py-4 rounded-[1.5rem] text-[11px] font-black uppercase tracking-widest transition-all ${type === 'paymoment' ? 'bg-purple-600 text-white shadow-xl' : 'text-slate-500 hover:text-purple-600'}`}>PayMoment User</button>
+        </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-8 md:p-12 border-2 border-slate-300 dark:border-slate-700 shadow-2xl space-y-10 transition-colors">
         {type === 'bank' ? (
           <div className="space-y-8">
-            <div className="space-y-3">
-              <label className="text-[11px] font-black text-slate-950 dark:text-slate-200 uppercase tracking-widest px-2">1. Choose Recipient Bank</label>
-              <div className="relative group">
-                <select value={bank} onChange={(e) => setBank(e.target.value)} className="w-full p-6 bg-white dark:bg-slate-800 border-2 border-slate-400 dark:border-slate-600 focus:border-blue-600 rounded-3xl outline-none font-black text-base text-slate-950 dark:text-white transition-all appearance-none shadow-sm group-hover:border-slate-50">
-                  <option value="">Select Bank...</option>
-                  {NIGERIAN_BANKS.map(b => <option key={b} value={b}>{b}</option>)}
-                </select>
-                <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-600 dark:text-slate-400 group-focus-within:text-blue-600 transition-colors">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M19 9l-7 7-7-7"/></svg>
-                </div>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <label className="text-[11px] font-black text-slate-950 dark:text-slate-200 uppercase tracking-widest px-2">2. Account Number</label>
-              <input type="text" maxLength={10} value={accountNumber} onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))} placeholder="0123456789" className="w-full p-6 bg-white dark:bg-slate-800 border-2 border-slate-400 dark:border-slate-600 focus:border-blue-600 rounded-3xl outline-none font-black text-2xl tracking-[0.2em] tabular-nums text-slate-950 dark:text-white transition-all shadow-sm placeholder:text-slate-300 dark:placeholder:text-slate-700" />
-            </div>
+            <div className="space-y-3"><label className="text-[10px] font-black text-slate-950 dark:text-slate-200 uppercase tracking-widest px-1">1. Choose Bank</label><div className="relative group"><select value={bank} onChange={(e) => setBank(e.target.value)} className="w-full p-5 bg-white dark:bg-slate-800 border-2 border-slate-400 dark:border-slate-600 rounded-2xl outline-none font-black text-base text-slate-950 dark:text-white appearance-none pr-10 focus:border-blue-600 transition-all"><option value="">Select Bank...</option>{NIGERIAN_BANKS.map(b => <option key={b} value={b}>{b}</option>)}</select><div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7-7-7-7"/></svg></div></div></div>
+            <div className="space-y-3"><label className="text-[10px] font-black text-slate-950 dark:text-slate-200 uppercase tracking-widest px-1">2. Account Number</label><input type="text" maxLength={10} value={accountNumber} onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))} placeholder="0123456789" className="w-full p-5 bg-white dark:bg-slate-800 border-2 border-slate-400 dark:border-slate-600 rounded-2xl font-black text-2xl tracking-widest tabular-nums text-slate-950 dark:text-white" /></div>
           </div>
         ) : (
           <div className="space-y-10">
-            <div className="grid grid-cols-2 gap-6">
-               <button onClick={() => { setPayMomentMethod('username'); setPayMomentValue(''); setVerifiedName(''); }} className={`p-6 rounded-[2.5rem] border-4 transition-all flex flex-col items-center gap-3 tap-scale ${payMomentMethod === 'username' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-600 shadow-md' : 'bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-800'}`}>
-                 <span className="text-4xl">👤</span>
-                 <span className={`font-black text-[11px] uppercase tracking-widest ${payMomentMethod === 'username' ? 'text-purple-700' : 'text-slate-600'}`}>Pay ID (@ID)</span>
-               </button>
-               <button onClick={() => { setPayMomentMethod('account'); setPayMomentValue(''); setVerifiedName(''); }} className={`p-6 rounded-[2.5rem] border-4 transition-all flex flex-col items-center gap-3 tap-scale ${payMomentMethod === 'account' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-600 shadow-md' : 'bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-800'}`}>
-                 <span className="text-3xl">🔢</span>
-                 <span className={`font-black text-[11px] uppercase tracking-widest ${payMomentMethod === 'account' ? 'text-purple-700' : 'text-slate-600'}`}>PM Account</span>
-               </button>
-            </div>
-            <div className="space-y-3">
-              <label className="text-[11px] font-black text-slate-950 dark:text-slate-200 uppercase tracking-widest px-2">Recipient {payMomentMethod === 'username' ? 'Pay ID' : 'Account'}</label>
-              <div className="relative group">
-                {payMomentMethod === 'username' && <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-slate-600 text-2xl group-focus-within:text-purple-600 transition-colors">@</span>}
-                <input type="text" value={payMomentValue} maxLength={payMomentMethod === 'account' ? 10 : 20} onChange={(e) => setPayMomentValue(payMomentMethod === 'account' ? e.target.value.replace(/\D/g, '') : e.target.value.toLowerCase())} placeholder={payMomentMethod === 'username' ? 'username' : '0123456789'} className={`w-full p-6 ${payMomentMethod === 'username' ? 'pl-12' : 'pl-6'} bg-white dark:bg-slate-800 border-2 border-slate-400 dark:border-slate-600 focus:border-purple-600 rounded-3xl outline-none font-black text-2xl text-slate-950 dark:text-white transition-all shadow-sm placeholder:text-slate-300 dark:placeholder:text-slate-700`} />
+            <div className="grid grid-cols-2 gap-4"><button onClick={() => { setPayMomentMethod('username'); setPayMomentValue(''); setVerifiedName(''); }} className={`p-6 rounded-2xl border-4 transition-all flex flex-col items-center gap-2 ${payMomentMethod === 'username' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-600 shadow-sm' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700'}`}><span className="text-3xl">👤</span><span className="font-black text-[10px] uppercase">Pay ID</span></button><button onClick={() => { setPayMomentMethod('account'); setPayMomentValue(''); setVerifiedName(''); }} className={`p-6 rounded-2xl border-4 transition-all flex flex-col items-center gap-2 ${payMomentMethod === 'account' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-600 shadow-sm' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700'}`}><span className="text-3xl">🔢</span><span className="font-black text-[10px] uppercase">Account</span></button></div>
+            <div className="space-y-3"><label className="text-[10px] font-black text-slate-950 dark:text-slate-200 uppercase tracking-widest px-1">Recipient {payMomentMethod}</label><div className="relative group">{payMomentMethod === 'username' && <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-slate-600 text-xl">@</span>}<input type="text" value={payMomentValue} onChange={(e) => setPayMomentValue(payMomentMethod === 'account' ? e.target.value.replace(/\D/g, '') : e.target.value.toLowerCase())} placeholder={payMomentMethod === 'username' ? 'username' : '0123456789'} className={`w-full p-5 ${payMomentMethod === 'username' ? 'pl-11' : 'pl-5'} bg-white dark:bg-slate-800 border-2 border-slate-400 dark:border-slate-600 rounded-2xl font-black text-xl text-slate-950 dark:text-white`} /></div></div>
+          </div>
+        )}
+
+        {verifiedName && (
+          <div className="space-y-6">
+            <div className="p-6 bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-500 rounded-3xl flex items-center justify-between animate-in zoom-in-95">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center text-2xl shadow-sm">👤</div>
+                <div><p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest leading-none mb-1">Recipient Verified</p><p className="text-base font-black text-slate-900 dark:text-white">{verifiedName}</p></div>
               </div>
             </div>
+
+            <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-200 dark:border-slate-700 space-y-4">
+               <div className="flex items-center gap-3">
+                  <input type="checkbox" id="saveBen" checked={saveAsBeneficiary} onChange={(e) => setSaveAsBeneficiary(e.target.checked)} className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"/>
+                  <label htmlFor="saveBen" className="text-xs font-bold text-slate-700 dark:text-slate-300">Save as Beneficiary</label>
+               </div>
+               {saveAsBeneficiary && (
+                 <input type="text" value={beneficiaryNickname} onChange={(e) => setBeneficiaryNickname(e.target.value)} placeholder="Nickname (e.g. My Landlord)" className="w-full p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold" />
+               )}
+            </div>
           </div>
         )}
 
-        <div className="min-h-[110px]">
-          {verifying && (
-            <div className="flex items-center gap-4 p-6 bg-blue-50 dark:bg-blue-900/40 border-4 border-dashed border-blue-400 rounded-[2rem] animate-pulse">
-               <div className="w-10 h-10 rounded-full border-4 border-blue-600 border-t-transparent animate-spin"></div>
-               <span className="text-[12px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-200">Security Lookup Active...</span>
-            </div>
-          )}
-          {verifiedName && (
-            <div className="p-8 bg-gradient-to-r from-emerald-500/10 to-emerald-500/20 dark:from-emerald-500/20 dark:to-emerald-500/30 border-4 border-emerald-500 rounded-[2.5rem] flex items-center justify-between animate-in zoom-in-95 duration-300 shadow-2xl shadow-emerald-500/20">
-               <div className="flex items-center gap-5">
-                  <div className="w-16 h-16 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-3xl shadow-lg border-2 border-emerald-200 dark:border-emerald-700">👤</div>
-                  <div>
-                    <p className="text-[11px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-[0.2em] leading-none mb-2">Confirmed Recipient</p>
-                    <p className="text-xl font-black text-slate-950 dark:text-white leading-none tracking-tight italic">{verifiedName}</p>
-                  </div>
-               </div>
-               <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center text-white shadow-xl">🛡️</div>
-            </div>
-          )}
-        </div>
-
-        <div className="space-y-3">
-          <label className="text-[11px] font-black text-slate-950 dark:text-slate-200 uppercase tracking-widest px-2">3. Amount to Transfer</label>
-          <div className="relative group">
-            <span className="absolute left-8 top-1/2 -translate-y-1/2 font-black text-slate-950 dark:text-white text-4xl group-focus-within:text-blue-600 transition-colors">₦</span>
-            <input 
-              type="text" 
-              value={amount} 
-              onChange={(e) => handleAmountChange(e.target.value)} 
-              placeholder="0.00" 
-              className="w-full p-8 pl-16 bg-white dark:bg-slate-800 border-4 border-slate-200 dark:border-slate-700 focus:border-blue-500 rounded-[2.5rem] outline-none font-black text-5xl tabular-nums text-slate-950 dark:text-white transition-all shadow-inner placeholder:text-slate-100 dark:placeholder:text-slate-800" 
-            />
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <label className="text-[11px] font-black text-slate-950 dark:text-slate-200 uppercase tracking-widest px-2">4. Remark / Narration (Optional)</label>
-          <input type="text" value={remark} onChange={(e) => setRemark(e.target.value)} placeholder="What's this for? e.g. Lunch money" className="w-full p-5 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:border-blue-500 font-bold transition-all text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-slate-600" />
-        </div>
+        <div className="space-y-3"><label className="text-[10px] font-black text-slate-950 dark:text-slate-200 uppercase tracking-widest px-1">3. Amount</label><div className="relative group"><span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-slate-950 dark:text-white text-3xl">₦</span><input type="text" value={amount} onChange={(e) => handleAmountChange(e.target.value)} placeholder="0.00" className="w-full p-6 pl-12 bg-white dark:bg-slate-800 border-4 border-slate-200 dark:border-slate-700 rounded-3xl outline-none font-black text-4xl tabular-nums text-slate-950 dark:text-white" /></div></div>
 
         {step === 'confirm' ? (
-          <div className="bg-slate-950 dark:bg-blue-600 p-10 rounded-[3rem] text-white space-y-8 animate-in slide-in-from-top-4 shadow-2xl border-4 border-blue-500/20">
-             <div className="space-y-2">
-                <p className="text-[11px] font-black uppercase tracking-[0.3em] text-white/60">Final Authorization</p>
-                <h4 className="text-5xl font-black italic tracking-tighter leading-none">₦{amount}</h4>
-                {remark && <p className="text-xs font-bold opacity-60">“{remark}”</p>}
-             </div>
-             <div className="p-6 bg-white/10 rounded-[1.5rem] flex justify-between items-center text-xs font-black uppercase tracking-widest border-2 border-white/20">
-                <span>Network Fee</span>
-                <span className="text-emerald-400">₦0.00 (Moment Free)</span>
-             </div>
-             <button onClick={() => { setPin(''); setStep('authorize'); }} className="w-full py-6 bg-white text-slate-950 rounded-2xl font-black uppercase tracking-widest shadow-2xl active:scale-95 transition-all text-xs">Authorize Transfer</button>
-             <button onClick={() => setStep('details')} className="w-full text-[11px] font-black uppercase tracking-widest opacity-60 hover:opacity-100 transition-opacity">Edit Transaction</button>
+          <div className="bg-slate-950 p-8 rounded-[2rem] text-white space-y-6 animate-in slide-in-from-top-4 shadow-2xl">
+             <div><p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/50">Confirming Transfer</p><h4 className="text-4xl font-black italic tracking-tighter">₦{amount}</h4></div>
+             <button onClick={() => setStep('authorize')} className="w-full py-5 bg-white text-slate-950 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl active:scale-95 transition-all">Authorize Now</button>
+             <button onClick={() => setStep('details')} className="w-full text-[10px] font-black uppercase tracking-widest opacity-50">Edit Details</button>
           </div>
         ) : (
-          <button disabled={!amount || !verifiedName} onClick={handleTransferRequest} className="w-full py-7 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white rounded-[2.5rem] font-black uppercase tracking-[0.3em] shadow-2xl shadow-blue-500/40 active:scale-[0.98] disabled:opacity-30 transition-all text-[13px] flex items-center justify-center gap-4">Review Transfer</button>
+          <button disabled={!amount || !verifiedName} onClick={handleTransferRequest} className="w-full py-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-[2rem] font-black uppercase tracking-widest shadow-xl disabled:opacity-30 active:scale-95 transition-all text-xs">Review Transfer</button>
         )}
-      </div>
-      <div className="bg-blue-600 p-8 rounded-[2.5rem] flex gap-6 items-center shadow-2xl shadow-blue-500/30">
-         <span className="text-5xl">💎</span>
-         <div>
-           <p className="text-[12px] font-black text-white uppercase tracking-widest leading-relaxed mb-1">Moment Reward Active</p>
-           <p className="text-xs font-bold text-blue-100 opacity-90 leading-tight">You are about to earn <span className="text-white font-black underline decoration-2">25 Points</span> on this transaction.</p>
-         </div>
       </div>
     </div>
   );
 };
 
-const ShareActionButton = ({ icon, label, color, onClick, disabled }: any) => (
-  <button onClick={onClick} disabled={disabled} className={`flex-1 flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border border-white/10 ${color} shadow-lg tap-scale group transition-all disabled:opacity-50`}>
-     <span className="text-2xl transition-transform group-hover:scale-110">{icon}</span>
-     <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/90">{label}</span>
-  </button>
-);
-
 const ReceiptDetailRow = ({ label, value, isMono = false }: { label: string, value: string, isMono?: boolean }) => (
-  <div className="flex flex-row justify-between items-start gap-4 py-0.5">
-    <span className="text-[8px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 shrink-0 w-24 md:w-32 mt-0.5 leading-tight">{label}</span>
-    <span className={`text-[10px] md:text-sm font-bold text-slate-900 dark:text-white text-right flex-1 leading-tight ${isMono ? 'font-mono bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded whitespace-nowrap' : 'break-words'}`}>{value}</span>
+  <div className="flex justify-between items-center text-[10px] md:text-xs">
+    <span className="font-black text-slate-400 uppercase tracking-widest">{label}</span>
+    <span className={`font-bold text-slate-900 dark:text-white ${isMono ? 'font-mono' : ''}`}>{value}</span>
   </div>
 );
 

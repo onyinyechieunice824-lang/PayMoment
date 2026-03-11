@@ -14,15 +14,17 @@ interface CardData {
   balance: number;
   monthlyLimit?: number;
   isPhysical?: boolean;
+  status?: 'active' | 'pending' | 'blocked';
 }
 
 interface VirtualCardsProps {
   user: any;
   setUser: (user: any) => void;
   processTransaction: (tx: Transaction, currency: string) => void;
+  notify: (msg: string, type?: 'success' | 'info' | 'error') => void;
 }
 
-const VirtualCards: React.FC<VirtualCardsProps> = ({ user, setUser, processTransaction }) => {
+const VirtualCards: React.FC<VirtualCardsProps> = ({ user, setUser, processTransaction, notify }) => {
   const navigate = useNavigate();
   const [cards, setCards] = useState<CardData[]>([
     {
@@ -51,10 +53,21 @@ const VirtualCards: React.FC<VirtualCardsProps> = ({ user, setUser, processTrans
   ]);
 
   const [isCreating, setIsCreating] = useState(false);
+  const [isRequestingPhysical, setIsRequestingPhysical] = useState(false);
+  
   const [newCardLabel, setNewCardLabel] = useState('');
   const [newCardCurrency, setNewCardCurrency] = useState<'NGN' | 'USD'>('USD');
   const [newCardNetwork, setNewCardNetwork] = useState<'VISA' | 'MASTERCARD'>('VISA');
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Physical card form state
+  const [address, setAddress] = useState({
+    street: '',
+    city: '',
+    state: '',
+    zip: ''
+  });
+  const [isOrderingPhysical, setIsOrderingPhysical] = useState(false);
 
   const generateCard = () => {
     if (!newCardLabel.trim()) return;
@@ -75,7 +88,35 @@ const VirtualCards: React.FC<VirtualCardsProps> = ({ user, setUser, processTrans
       setNewCardLabel('');
       setIsCreating(false);
       setIsGenerating(false);
+      notify("Virtual card deployed successfully!", "success");
     }, 2000);
+  };
+
+  const handlePhysicalOrder = () => {
+    if (!address.street || !address.city || !address.state) {
+      notify("Please fill in your complete delivery address.", "error");
+      return;
+    }
+    
+    setIsOrderingPhysical(true);
+    setTimeout(() => {
+      const newPhysicalCard: CardData = {
+        id: Math.random().toString(36).substr(2, 9),
+        label: 'Physical Debit Card',
+        number: `5399 **** **** ${Math.floor(1000 + Math.random() * 9000)}`,
+        expiry: 'Pending',
+        cvv: '***',
+        type: 'MASTERCARD',
+        currency: 'NGN',
+        balance: 0,
+        isPhysical: true,
+        status: 'pending'
+      };
+      setCards([...cards, newPhysicalCard]);
+      setIsOrderingPhysical(false);
+      setIsRequestingPhysical(false);
+      notify("Physical card order placed! It will arrive in 3-5 business days.", "success");
+    }, 2500);
   };
 
   return (
@@ -90,21 +131,55 @@ const VirtualCards: React.FC<VirtualCardsProps> = ({ user, setUser, processTrans
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-2">
         <div>
           <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight italic">Card Management</h2>
-          <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1">Instant virtual cards for global web and physical local spending.</p>
+          <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1">Instant virtual cards and premium physical debits.</p>
         </div>
-        <button 
-           onClick={() => setIsCreating(true)}
-           className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl hover:bg-blue-700 active:scale-95 transition-all shadow-blue-500/20"
-        >
-           + Issue Digital Card
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button 
+             onClick={() => setIsRequestingPhysical(true)}
+             className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl active:scale-95 transition-all"
+          >
+             Request Physical
+          </button>
+          <button 
+             onClick={() => setIsCreating(true)}
+             className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl hover:bg-blue-700 active:scale-95 transition-all shadow-blue-500/20"
+          >
+             + Issue Digital
+          </button>
+        </div>
       </div>
+
+      {/* PHYSICAL CARD AD BANNER */}
+      {!cards.some(c => c.isPhysical && c.status === 'pending') && (
+        <div 
+          onClick={() => setIsRequestingPhysical(true)}
+          className="bg-gradient-to-r from-blue-700 to-indigo-900 rounded-[2.5rem] p-8 md:p-10 text-white shadow-2xl relative overflow-hidden group cursor-pointer active:scale-[0.98] transition-all"
+        >
+          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="space-y-4 text-center md:text-left">
+               <span className="px-3 py-1 bg-white/20 rounded-full text-[8px] font-black uppercase tracking-widest border border-white/20">Limited Edition</span>
+               <h3 className="text-3xl font-black italic tracking-tighter leading-none">Get the PayMoment Physical Card</h3>
+               <p className="text-xs text-white/70 max-w-sm font-medium leading-relaxed">Accepted at every POS and ATM nationwide. Experience premium offline banking with 0.5% cashback on every swipe.</p>
+               <button className="bg-white text-blue-900 px-6 py-3 rounded-xl font-black uppercase tracking-widest text-[9px]">Apply Now</button>
+            </div>
+            <div className="w-48 h-32 bg-slate-900 rounded-2xl rotate-6 shadow-2xl flex flex-col justify-between p-4 border border-white/10 group-hover:rotate-0 transition-transform duration-500">
+               <span className="font-black italic text-xs">PM</span>
+               <div className="space-y-1">
+                  <div className="w-10 h-6 bg-amber-400/20 rounded"></div>
+                  <p className="text-[8px] font-mono opacity-40">5399 **** **** 8821</p>
+               </div>
+            </div>
+          </div>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-[80px]"></div>
+        </div>
+      )}
 
       <div className="grid gap-8 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
         {cards.map((card) => (
           <div 
             key={card.id} 
             className={`relative aspect-[1.6/1] w-full rounded-[2.5rem] p-8 text-white shadow-2xl overflow-hidden group cursor-pointer transition-all hover:scale-[1.02] tap-scale ${
+              card.status === 'pending' ? 'grayscale opacity-60' : 
               card.currency === 'USD' ? 'bg-gradient-to-br from-indigo-950 via-indigo-800 to-purple-800' : 'bg-gradient-to-br from-blue-950 via-blue-800 to-blue-600'
             }`}
           >
@@ -114,7 +189,9 @@ const VirtualCards: React.FC<VirtualCardsProps> = ({ user, setUser, processTrans
                    <span className="font-black text-xl italic tracking-tighter">PayMoment</span>
                    <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mt-0.5">{card.label}</span>
                  </div>
-                 {card.isPhysical ? (
+                 {card.status === 'pending' ? (
+                   <span className="bg-amber-500/20 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border border-amber-500/20 text-amber-300">Ordering</span>
+                 ) : card.isPhysical ? (
                    <span className="bg-white/20 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border border-white/20">Physical</span>
                  ) : (
                     <span className="bg-emerald-500/20 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border border-emerald-500/20 text-emerald-300">Virtual</span>
@@ -153,6 +230,86 @@ const VirtualCards: React.FC<VirtualCardsProps> = ({ user, setUser, processTrans
         </div>
       </div>
 
+      {/* PHYSICAL CARD REQUEST MODAL */}
+      {isRequestingPhysical && (
+        <div className="fixed-overlay bg-slate-950/90 backdrop-blur-xl flex items-end md:items-center justify-center animate-in fade-in duration-300">
+           <div className="bg-white dark:bg-slate-900 rounded-t-[3rem] md:rounded-[3.5rem] w-full max-w-xl p-8 md:p-12 shadow-2xl animate-in slide-in-from-bottom-10 overflow-y-auto max-h-[90vh] no-scrollbar">
+              <div className="flex justify-between items-start mb-8">
+                 <div>
+                    <h3 className="text-3xl font-black text-slate-900 dark:text-white italic tracking-tighter leading-none">Order Physical Card</h3>
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">Premium Delivery Service</p>
+                 </div>
+                 <button onClick={() => setIsRequestingPhysical(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-2xl">×</button>
+              </div>
+
+              <div className="space-y-8">
+                 <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-3xl border border-blue-100 flex items-center gap-4">
+                    <span className="text-3xl">🚚</span>
+                    <div>
+                       <p className="text-[11px] font-black text-blue-900 dark:text-blue-300 uppercase tracking-widest leading-none mb-1">Estimated Delivery</p>
+                       <p className="text-sm font-bold text-blue-700 dark:text-blue-200">3 - 5 Business Days • ₦1,500 Delivery Fee</p>
+                    </div>
+                 </div>
+
+                 <div className="space-y-4">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Delivery Information</p>
+                    <div className="grid gap-4">
+                       <input 
+                          type="text" 
+                          placeholder="Street Address" 
+                          value={address.street}
+                          onChange={(e) => setAddress({...address, street: e.target.value})}
+                          className="w-full p-5 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 rounded-2xl outline-none focus:border-blue-500 font-bold dark:text-white"
+                       />
+                       <div className="grid grid-cols-2 gap-4">
+                          <input 
+                             type="text" 
+                             placeholder="City" 
+                             value={address.city}
+                             onChange={(e) => setAddress({...address, city: e.target.value})}
+                             className="w-full p-5 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 rounded-2xl outline-none focus:border-blue-500 font-bold dark:text-white"
+                          />
+                          <input 
+                             type="text" 
+                             placeholder="State" 
+                             value={address.state}
+                             onChange={(e) => setAddress({...address, state: e.target.value})}
+                             className="w-full p-5 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 rounded-2xl outline-none focus:border-blue-500 font-bold dark:text-white"
+                          />
+                       </div>
+                       <input 
+                          type="text" 
+                          placeholder="Postal Code (Optional)" 
+                          value={address.zip}
+                          onChange={(e) => setAddress({...address, zip: e.target.value})}
+                          className="w-full p-5 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 rounded-2xl outline-none focus:border-blue-500 font-bold dark:text-white"
+                       />
+                    </div>
+                 </div>
+
+                 <div className="pt-4">
+                    <button 
+                       onClick={handlePhysicalOrder}
+                       disabled={isOrderingPhysical || !address.street || !address.city || !address.state}
+                       className="w-full py-6 bg-blue-600 text-white rounded-[2.5rem] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                    >
+                       {isOrderingPhysical ? (
+                          <>
+                             <div className="w-5 h-5 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
+                             <span>Requesting...</span>
+                          </>
+                       ) : 'Order Physical Card'}
+                    </button>
+                    <p className="text-[9px] text-center text-slate-500 font-bold uppercase tracking-widest mt-6">
+                       Delivery Fee will be deducted from your Naira wallet.
+                    </p>
+                 </div>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* VIRTUAL CARD GENERATION MODAL */}
       {isCreating && (
         <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center p-0 md:p-6 bg-slate-950/90 backdrop-blur-xl animate-in fade-in duration-300">
           <div className="bg-white dark:bg-slate-900 rounded-t-[3.5rem] md:rounded-[4rem] w-full max-w-2xl p-8 md:p-12 shadow-2xl animate-in slide-in-from-bottom-12 duration-500 overflow-y-auto max-h-[95vh] no-scrollbar border-t border-slate-200 dark:border-slate-800">
@@ -193,7 +350,6 @@ const VirtualCards: React.FC<VirtualCardsProps> = ({ user, setUser, processTrans
               </div>
 
               <div className="grid gap-8">
-                {/* 1. Currency Selection - Light mode visibility fix for abbreviations */}
                 <div className="space-y-4">
                    <p className="text-[10px] font-black text-slate-800 dark:text-slate-400 uppercase tracking-widest px-2 font-inter">1. Select Asset Currency</p>
                    <div className="grid grid-cols-2 gap-4">
@@ -220,7 +376,6 @@ const VirtualCards: React.FC<VirtualCardsProps> = ({ user, setUser, processTrans
                    </div>
                 </div>
 
-                {/* 2. Network Selection - Light mode visibility fix */}
                 <div className="space-y-4">
                    <p className="text-[10px] font-black text-slate-800 dark:text-slate-400 uppercase tracking-widest px-2">2. Select Card Network</p>
                    <div className="grid grid-cols-2 gap-4">
@@ -239,7 +394,6 @@ const VirtualCards: React.FC<VirtualCardsProps> = ({ user, setUser, processTrans
                    </div>
                 </div>
 
-                {/* 3. Card Label */}
                 <div className="space-y-4">
                    <p className="text-[10px] font-black text-slate-800 dark:text-slate-400 uppercase tracking-widest px-2">3. Personalize Asset Label</p>
                    <input 

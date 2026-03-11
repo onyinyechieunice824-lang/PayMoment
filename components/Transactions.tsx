@@ -17,16 +17,10 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
-  const [sharingStatus, setSharingStatus] = useState<'idle' | 'generating'>('idle');
-  
-  // Wrong Transfer Flow State
-  const [resolutionStep, setResolutionStep] = useState<'details' | 'evidence' | 'processing' | 'done'>('details');
-  const [isReporting, setIsReporting] = useState(false);
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
       const matchesType = filter === 'all' || t.type === filter;
-      
       let matchesDate = true;
       if (startDate || endDate) {
         const txDate = new Date(t.timestamp).getTime();
@@ -34,7 +28,6 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
         const end = endDate ? new Date(endDate).setHours(23,59,59,999) : Infinity;
         matchesDate = txDate >= start && txDate <= end;
       }
-      
       return matchesType && matchesDate;
     });
   }, [transactions, filter, startDate, endDate]);
@@ -57,220 +50,65 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
     return tx.title || 'System Pay';
   };
 
-  const generateReceiptCanvas = async (tx: Transaction) => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 800;
-    canvas.height = 1200; 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, 800, 1200);
-
-    ctx.fillStyle = '#1E3A8A';
-    ctx.fillRect(0, 0, 800, 180);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'italic 900 60px Inter, sans-serif';
-    ctx.fillText('PayMoment', 60, 110);
-    ctx.font = 'bold 16px Inter, sans-serif';
-    ctx.fillText('OFFICIAL TRANSACTION RECORD', 60, 145);
-
-    ctx.fillStyle = '#f1f5f9';
-    ctx.fillRect(60, 220, 680, 200);
-
-    ctx.fillStyle = '#64748b';
-    ctx.font = 'bold 20px Inter, sans-serif';
-    ctx.fillText('TRANSACTION AMOUNT', 90, 270);
-
-    ctx.fillStyle = tx.type === 'credit' ? '#10b981' : '#0f172a';
-    ctx.font = '900 70px Inter, sans-serif';
-    ctx.fillText(`${tx.type === 'credit' ? '+' : '-'} NGN ${tx.amount.toLocaleString()}`, 90, 360);
-
-    let y = 500;
-    const drawRow = (label: string, value: string) => {
-      ctx.fillStyle = '#64748b';
-      ctx.font = 'bold 20px Inter, sans-serif';
-      ctx.fillText(label.toUpperCase(), 60, y);
-      ctx.fillStyle = '#0f172a';
-      ctx.font = '800 24px Inter, sans-serif';
-      ctx.fillText(value, 320, y);
-      y += 80;
-    };
-
-    drawRow('Sender Name', getSenderName(tx));
-    drawRow('Recipient Account', getRecipientAccount(tx));
-    drawRow('Description', tx.title);
-    drawRow('Narration', tx.remark || 'N/A');
-    drawRow('Category', tx.category);
-    drawRow('Reference', `PM-${tx.id.toUpperCase()}`);
-    drawRow('Timestamp', tx.timestamp);
-    drawRow('Status', tx.status.toUpperCase());
-
-    ctx.fillStyle = '#1E3A8A';
-    ctx.fillRect(60, 1140, 680, 4);
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = 'italic bold 18px Inter, sans-serif';
-    ctx.fillText('Verified Financial Document. End-to-end Encrypted.', 60, 1180);
-
-    return canvas.toDataURL('image/png');
-  };
-
-  const handleShare = async (tx: Transaction, mode: 'link' | 'image' | 'pdf') => {
-    const summary = `PayMoment Receipt\nSender: ${getSenderName(tx)}\nRecipient Acc: ${getRecipientAccount(tx)}\nAmount: ₦${tx.amount.toLocaleString()}\nRef: PM-${tx.id.toUpperCase()}`;
-    
-    if (mode === 'pdf') {
-      window.print();
-      return;
-    }
-
-    setSharingStatus('generating');
-    
-    if (mode === 'image') {
-      const dataUrl = await generateReceiptCanvas(tx);
-      if (dataUrl) {
-        const blob = await (await fetch(dataUrl)).blob();
-        const file = new File([blob], `PayMoment-Receipt-${tx.id}.png`, { type: 'image/png' });
-        
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          try {
-            await navigator.share({ files: [file], title: 'PayMoment Receipt' });
-          } catch (e) {
-            const link = document.createElement('a');
-            link.download = `PayMoment-Receipt-${tx.id}.png`;
-            link.href = dataUrl;
-            link.click();
-          }
-        } else {
-          const link = document.createElement('a');
-          link.download = `PayMoment-Receipt-${tx.id}.png`;
-          link.href = dataUrl;
-          link.click();
-        }
-      }
-      setSharingStatus('idle');
-      notify("Receipt image generated", "success");
-    } else if (mode === 'link') {
-      if (navigator.share) {
-        try {
-          await navigator.share({ title: 'PayMoment Receipt', text: summary, url: window.location.href });
-          notify("Receipt shared!", "success");
-        } catch {
-          navigator.clipboard.writeText(summary);
-          notify("Details copied to clipboard", "info");
-        }
-      } else {
-        navigator.clipboard.writeText(summary);
-        notify("Details copied!", "info");
-      }
-      setSharingStatus('idle');
-    }
-  };
-
   return (
-    <div className="space-y-8 animate-in fade-in duration-700 pb-20">
-      {/* Header & Controls */}
-      <div className="flex flex-col gap-6 px-1 no-print">
+    <div className="space-y-8 animate-in fade-in duration-700 pb-20 px-2">
+      <div className="flex flex-col gap-6 px-1">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-4">
             <button onClick={() => navigate(-1)} className="group flex items-center gap-2 text-slate-500 hover:text-blue-600 transition-colors tap-scale">
-              <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30">
+              <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-blue-100">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7"/></svg>
               </div>
               <span className="text-[10px] font-black uppercase tracking-widest">Back</span>
             </button>
             <div>
-              <h2 className="text-3xl font-black text-slate-900 dark:text-white italic tracking-tighter leading-none">Activity Feed</h2>
-              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1">Real-time ledger of your financial moments.</p>
+              <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white italic tracking-tighter leading-none">Account Feed</h2>
+              <p className="text-slate-500 text-[10px] font-medium mt-1 uppercase tracking-widest">Real-time History</p>
             </div>
           </div>
-
-          <div className="flex bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div className="flex bg-white dark:bg-slate-900 p-1 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm self-start overflow-x-auto no-scrollbar max-w-full">
              {['all', 'credit', 'debit'].map((f) => (
-               <button 
-                key={f}
-                onClick={() => setFilter(f as any)}
-                className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === f ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-blue-600'}`}
-               >
-                 {f}
-               </button>
+               <button key={f} onClick={() => setFilter(f as any)} className={`px-4 md:px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === f ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-blue-600'}`}>{f}</button>
              ))}
           </div>
         </div>
 
-        {/* Date Filter Bar */}
-        <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-xl flex flex-col items-stretch gap-5 transition-all">
-          <div className="w-full grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-[9px] md:text-[11px] font-black text-slate-900 dark:text-slate-400 uppercase tracking-widest px-1">Starting Period</label>
-              <div className="relative group">
-                <input 
-                  type="date" 
-                  value={startDate} 
-                  onChange={(e) => setStartDate(e.target.value)} 
-                  placeholder="mm/dd/yyyy"
-                  className="w-full bg-slate-50 dark:bg-slate-800/80 px-3 md:px-5 py-4 min-h-[56px] rounded-2xl border-2 border-slate-200 dark:border-slate-700 text-[11px] md:text-base font-black text-slate-900 dark:text-white outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm cursor-pointer"
-                />
-              </div>
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-xl flex flex-col gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest px-1">Starting Period</label>
+              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-black text-slate-900 dark:text-white outline-none focus:border-blue-500 transition-all shadow-sm" />
             </div>
-            <div className="space-y-2">
-              <label className="text-[9px] md:text-[11px] font-black text-slate-900 dark:text-slate-400 uppercase tracking-widest px-1">Ending Period</label>
-              <div className="relative group">
-                <input 
-                  type="date" 
-                  value={endDate} 
-                  onChange={(e) => setEndDate(e.target.value)} 
-                  placeholder="mm/dd/yyyy"
-                  className="w-full bg-slate-50 dark:bg-slate-800/80 px-3 md:px-5 py-4 min-h-[56px] rounded-2xl border-2 border-slate-200 dark:border-slate-700 text-[11px] md:text-base font-black text-slate-900 dark:text-white outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm cursor-pointer"
-                />
-              </div>
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest px-1">Ending Period</label>
+              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-black text-slate-900 dark:text-white outline-none focus:border-blue-500 transition-all shadow-sm" />
             </div>
           </div>
-          
           {(startDate || endDate || filter !== 'all') && (
-            <button 
-              onClick={clearFilters}
-              className="w-full text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest px-6 py-4 bg-rose-50 dark:bg-rose-950/20 rounded-2xl border-2 border-rose-200 dark:border-rose-900/30 tap-scale h-[56px]"
-            >
-              Reset Filters
-            </button>
+            <button onClick={clearFilters} className="w-full text-[9px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest py-3 bg-rose-50 dark:bg-rose-950/20 rounded-xl border border-rose-200 dark:border-rose-900/30 tap-scale">Reset Filters</button>
           )}
         </div>
       </div>
 
-      <div className="no-print bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm transition-colors">
+      <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
         <div className="divide-y divide-slate-100 dark:divide-slate-800">
           {filteredTransactions.length === 0 ? (
-            <div className="p-24 text-center">
-               <span className="text-5xl block mb-6 grayscale opacity-30">📂</span>
-               <p className="text-slate-400 font-black uppercase tracking-[0.2em] italic text-xs">No entries for this period</p>
-            </div>
+            <div className="p-20 text-center text-slate-400 font-black uppercase italic text-[10px]">No entries for this period</div>
           ) : (
             filteredTransactions.map((tx) => (
-              <div 
-                key={tx.id} 
-                onClick={() => { setSelectedTx(tx); setResolutionStep('details'); setIsReporting(false); }} 
-                className="p-6 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group"
-              >
-                <div className="flex items-center gap-5">
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-sm transition-all group-hover:scale-110 ${tx.type === 'credit' ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
-                    {tx.type === 'credit' ? '↓' : '↑'}
-                  </div>
-                  <div>
-                    <p className="font-black text-slate-900 dark:text-white transition-colors text-sm">{tx.title}</p>
-                    <div className="flex items-center gap-3 mt-1">
-                      <span className={`text-[8px] px-2 py-0.5 rounded font-black uppercase tracking-widest ${tx.status === 'recovery_active' ? 'bg-amber-100 text-amber-600' : tx.type === 'credit' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
-                        {tx.status === 'recovery_active' ? 'Resolving' : tx.category}
-                      </span>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium tabular-nums">{tx.timestamp}</span>
+              <div key={tx.id} onClick={() => setSelectedTx(tx)} className="p-5 md:p-6 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer group">
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl transition-all group-hover:scale-110 ${tx.type === 'credit' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-600'}`}>{tx.type === 'credit' ? '↓' : '↑'}</div>
+                  <div className="min-w-0">
+                    <p className="font-black text-slate-900 dark:text-white text-sm truncate max-w-[140px] xs:max-w-none">{tx.title}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-[7px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-black uppercase tracking-widest">{tx.category}</span>
+                      <span className="text-[9px] text-slate-400 font-medium">{tx.timestamp.split(',')[0]}</span>
                     </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className={`text-lg font-black transition-colors ${tx.type === 'credit' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
-                    {tx.type === 'credit' ? '+' : '-'}₦{tx.amount.toLocaleString()}
-                  </p>
-                  <p className="text-[9px] font-black text-blue-500 dark:text-blue-400 uppercase tracking-widest mt-1">Details →</p>
+                <div className="text-right shrink-0">
+                  <p className={`text-sm font-black ${tx.type === 'credit' ? 'text-emerald-600' : 'text-slate-900 dark:text-white'}`}>{tx.type === 'credit' ? '+' : '-'}₦{tx.amount.toLocaleString()}</p>
                 </div>
               </div>
             ))
@@ -278,138 +116,13 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
         </div>
       </div>
 
-      {/* RECEIPT MODAL & PRINT CONTAINER */}
       {selectedTx && (
-        <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center p-0 md:p-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
-           <div className="bg-white dark:bg-slate-900 rounded-t-[3.5rem] md:rounded-[4rem] w-full max-w-lg p-6 md:p-12 shadow-2xl animate-in slide-in-from-bottom-12 duration-500 border-t border-slate-200 dark:border-slate-800 max-h-[95vh] overflow-y-auto no-scrollbar">
-              
-              {!isReporting ? (
-                <>
-                  <div className="no-print flex justify-between items-center mb-6 md:mb-10">
-                    <h3 className="text-xl md:text-2xl font-black italic tracking-tighter text-slate-900 dark:text-white">Receipt View</h3>
-                    <button onClick={() => setSelectedTx(null)} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:rotate-90 transition-transform">×</button>
-                  </div>
-
-                  <div className="print-container bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[2.5rem] md:rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-xl transition-colors">
-                    <div className="flex flex-col items-center text-center gap-4 mb-8 md:mb-10 pb-6 md:pb-8 border-b border-dashed border-slate-200 dark:border-slate-800">
-                        <PayMomentLogo className="w-16 h-16 md:w-20 md:h-20" idSuffix="receipt-logo" />
-                        <div>
-                          <h4 className="text-3xl md:text-4xl font-black tracking-tighter italic text-blue-700 dark:text-white leading-none">PayMoment</h4>
-                          <p className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mt-2">Official Payment Record</p>
-                        </div>
-                    </div>
-
-                    <div className="bg-slate-50 dark:bg-slate-800/50 p-8 md:p-10 rounded-[2rem] md:rounded-[2.5rem] flex flex-col items-center gap-2 border border-slate-100 dark:border-slate-800 transition-colors">
-                        <p className="text-[9px] md:text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Amount</p>
-                        <h5 className={`text-4xl md:text-5xl font-black tabular-nums tracking-tighter ${selectedTx.type === 'credit' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
-                          {selectedTx.type === 'credit' ? '+' : '-'}₦{selectedTx.amount.toLocaleString()}
-                        </h5>
-                    </div>
-
-                    <div className="space-y-4 md:space-y-6 px-2 md:px-4 py-8 md:py-10">
-                        <ReceiptRow label="Sender Name" value={getSenderName(selectedTx)} />
-                        <ReceiptRow label="Recipient Account" value={getRecipientAccount(selectedTx)} valueClass="font-mono bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded whitespace-nowrap" />
-                        <ReceiptRow label="Description" value={selectedTx.title} />
-                        <ReceiptRow label="Narration" value={selectedTx.remark || 'N/A'} />
-                        <ReceiptRow label="Category" value={selectedTx.category} />
-                        <ReceiptRow label="Time" value={selectedTx.timestamp} />
-                        <ReceiptRow label="Ref" value={`PM-${selectedTx.id.toUpperCase()}`} valueClass="font-mono text-[10px] md:text-[11px] bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded whitespace-nowrap" />
-                    </div>
-
-                    <div className="hidden print:block pt-8 text-center border-t border-slate-100 mt-6">
-                       <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Verified digital document • Generated by PayMoment App</p>
-                    </div>
-                  </div>
-
-                  {/* ENHANCED SHARE GRID */}
-                  <div className="no-print pt-10 space-y-6">
-                    <div className="grid grid-cols-3 gap-4">
-                       <ShareButton 
-                         icon="🔗" 
-                         label="Link" 
-                         color="bg-blue-600" 
-                         onClick={() => handleShare(selectedTx, 'link')} 
-                         disabled={sharingStatus === 'generating'} 
-                       />
-                       <ShareButton 
-                         icon="🖼️" 
-                         label="Image" 
-                         color="bg-purple-600" 
-                         onClick={() => handleShare(selectedTx, 'image')} 
-                         disabled={sharingStatus === 'generating'} 
-                       />
-                       <ShareButton 
-                         icon="📄" 
-                         label="PDF" 
-                         color="bg-emerald-600" 
-                         onClick={() => handleShare(selectedTx, 'pdf')} 
-                         disabled={sharingStatus === 'generating'} 
-                       />
-                    </div>
-
-                    {sharingStatus === 'generating' && (
-                      <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center gap-3 animate-pulse">
-                         <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Preparing Asset...</span>
-                      </div>
-                    )}
-                    
-                    {selectedTx.type === 'debit' && selectedTx.status === 'completed' && (
-                      <button 
-                        onClick={() => setIsReporting(true)}
-                        className="w-full py-4 bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 rounded-2xl font-black uppercase tracking-widest text-[10px] border border-rose-100 dark:border-rose-900/30 tap-scale"
-                      >
-                         ⚠️ Report Wrong Transfer
-                      </button>
-                    )}
-
-                    <button onClick={() => setSelectedTx(null)} className="w-full py-4 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-2xl font-black uppercase tracking-widest text-[10px] tap-scale">Close Viewer</button>
-                  </div>
-                </>
-              ) : (
-                <div className="no-print space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
-                   <div className="flex justify-between items-center">
-                      <button onClick={() => setIsReporting(false)} className="text-xs font-black text-blue-600 uppercase tracking-widest">← Back</button>
-                      <h3 className="text-xl font-black italic tracking-tighter text-rose-600">Shield Resolution</h3>
-                      <div className="w-10" />
-                   </div>
-
-                   {resolutionStep === 'details' && (
-                     <div className="space-y-8">
-                        <div className="bg-rose-50 dark:bg-rose-950/20 p-6 rounded-[2rem] border border-rose-100 dark:border-rose-900/30">
-                           <h4 className="font-black text-rose-700 dark:text-rose-400 text-sm mb-2 uppercase">Shield Protection</h4>
-                           <p className="text-[10px] font-medium text-rose-800 dark:text-rose-300 leading-relaxed uppercase tracking-widest">
-                             We attempt instant recovery. If spent, the recipient is blacklisted and funds are swept from future credits.
-                           </p>
-                        </div>
-                        <button 
-                          onClick={() => setResolutionStep('done')}
-                          className="w-full py-5 bg-rose-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl"
-                        >
-                          Initiate Resolution
-                        </button>
-                     </div>
-                   )}
-
-                   {resolutionStep === 'done' && (
-                     <div className="py-12 space-y-10 text-center animate-in zoom-in-95">
-                        <div className="w-24 h-24 bg-emerald-100 rounded-full mx-auto flex items-center justify-center text-4xl shadow-xl">✓</div>
-                        <div className="space-y-3">
-                           <h4 className="text-3xl font-black italic tracking-tighter text-slate-900 dark:text-white">Shield Applied</h4>
-                           <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-                             The recipient has been restricted. Recovery is in progress.
-                           </p>
-                        </div>
-                        <button 
-                          onClick={() => { setSelectedTx(null); setIsReporting(false); }}
-                          className="w-full py-5 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-2xl font-black uppercase tracking-widest"
-                        >
-                          Finish
-                        </button>
-                     </div>
-                   )}
-                </div>
-              )}
+        <div className="fixed-overlay bg-slate-950/80 backdrop-blur-md flex items-end md:items-center justify-center">
+           <div className="bg-white dark:bg-slate-900 rounded-t-[3rem] md:rounded-[4rem] w-full max-w-lg p-8 md:p-12 shadow-2xl animate-in slide-in-from-bottom-12 duration-500 max-h-[90vh] overflow-y-auto no-scrollbar">
+              <div className="flex justify-between items-center mb-8"><h3 className="text-xl md:text-2xl font-black italic tracking-tighter text-slate-900 dark:text-white">Transaction Receipt</h3><button onClick={() => setSelectedTx(null)} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 text-2xl">×</button></div>
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-8 rounded-[2.5rem] flex flex-col items-center gap-2 border border-slate-100 dark:border-slate-800"><p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Amount Settled</p><h5 className={`text-3xl md:text-4xl font-black tracking-tighter ${selectedTx.type === 'credit' ? 'text-emerald-600' : 'text-slate-900 dark:text-white'}`}>{selectedTx.type === 'credit' ? '+' : '-'}₦{selectedTx.amount.toLocaleString()}</h5></div>
+              <div className="space-y-4 py-8 border-b border-dashed border-slate-200 dark:border-slate-800"><ReceiptRow label="Sender" value={getSenderName(selectedTx)} /><ReceiptRow label="Destination" value={getRecipientAccount(selectedTx)} /><ReceiptRow label="Narration" value={selectedTx.remark || 'Moment Transfer'} /><ReceiptRow label="Reference" value={`PM-${selectedTx.id.toUpperCase()}`} /><ReceiptRow label="Status" value="SUCCESSFUL" /></div>
+              <button onClick={() => setSelectedTx(null)} className="w-full py-5 mt-8 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-2xl font-black uppercase tracking-widest text-[10px] tap-scale">Close Receipt</button>
            </div>
         </div>
       )}
@@ -417,22 +130,8 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, user, setUser
   );
 };
 
-const ShareButton = ({ icon, label, color, onClick, disabled }: any) => (
-  <button 
-    onClick={onClick}
-    disabled={disabled}
-    className={`flex-1 flex flex-col items-center justify-center gap-2 py-4 rounded-2xl border border-white/10 ${color} text-white shadow-xl tap-scale group transition-all disabled:opacity-50`}
-  >
-     <span className="text-2xl transition-transform group-hover:scale-110">{icon}</span>
-     <span className="text-[9px] font-black uppercase tracking-[0.2em]">{label}</span>
-  </button>
-);
-
-const ReceiptRow = ({ label, value, valueClass = "" }: { label: string, value: string, valueClass?: string }) => (
-  <div className="flex flex-row justify-between items-start gap-4 py-0.5">
-     <span className="text-[8px] md:text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest shrink-0 w-24 md:w-32 mt-0.5 leading-tight">{label}</span>
-     <span className={`text-[10px] md:text-sm font-bold text-slate-900 dark:text-white text-right flex-1 break-words leading-tight ${valueClass}`}>{value}</span>
-  </div>
+const ReceiptRow = ({ label, value }: { label: string, value: string }) => (
+  <div className="flex justify-between items-start gap-4"><span className="text-[9px] font-black text-slate-400 uppercase tracking-widest shrink-0 w-24 leading-relaxed">{label}</span><span className="text-[10px] md:text-[11px] font-bold text-slate-900 dark:text-white text-right flex-1 break-words">{value}</span></div>
 );
 
 export default Transactions;

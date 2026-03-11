@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { User } from '../types';
 import { UserAvatar } from '../App';
 
@@ -14,6 +14,7 @@ const BiometricOverlay: React.FC<BiometricOverlayProps> = ({ onAuthenticated, is
   const [mode, setMode] = useState<'biometric' | 'pin'>('biometric');
   const [status, setStatus] = useState<'idle' | 'verifying' | 'success'>('idle');
   const [pin, setPin] = useState<string>('');
+  const hiddenInputRef = useRef<HTMLInputElement>(null);
 
   // Dynamic greeting
   const greeting = useMemo(() => {
@@ -48,6 +49,15 @@ const BiometricOverlay: React.FC<BiometricOverlayProps> = ({ onAuthenticated, is
 
   const deletePinInput = () => {
     setPin(pin.slice(0, -1));
+  };
+
+  const handleHiddenInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+    setPin(val);
+    if (val.length === 4) {
+      setStatus('success');
+      setTimeout(onAuthenticated, 800);
+    }
   };
 
   const handleSwitchAccount = () => {
@@ -120,11 +130,31 @@ const BiometricOverlay: React.FC<BiometricOverlayProps> = ({ onAuthenticated, is
           </div>
         ) : (
           <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex justify-center gap-6">
+            {/* NEW BOX-STYLE PIN DISPLAY FOR LOGIN */}
+            <div className="flex justify-center gap-4" onClick={() => hiddenInputRef.current?.focus()}>
               {[...Array(4)].map((_, i) => (
-                <div key={i} className={`w-4 h-4 rounded-full border-2 transition-all duration-300 ${pin.length > i ? 'bg-blue-500 border-blue-500 scale-125 shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'border-white/20'}`} />
+                <div 
+                  key={i} 
+                  className={`w-14 h-16 rounded-2xl border-2 flex items-center justify-center transition-all duration-300 ${
+                    pin.length === i ? 'border-blue-500 bg-blue-500/10 scale-110 shadow-[0_0_20px_rgba(59,130,246,0.3)]' : 
+                    pin.length > i ? 'border-white bg-white/10' : 'border-white/20 bg-white/5'
+                  }`}
+                >
+                  {pin.length > i ? (
+                     <span className="text-white text-3xl font-black">{pin[i]}</span>
+                  ) : pin.length === i ? (
+                     <div className="w-1 h-8 bg-blue-500 animate-pulse rounded-full"></div>
+                  ) : null}
+                </div>
               ))}
             </div>
+
+            <input 
+              ref={hiddenInputRef}
+              type="tel" pattern="[0-9]*" inputMode="numeric"
+              value={pin} onChange={handleHiddenInputChange}
+              className="absolute opacity-0 pointer-events-none"
+            />
 
             <div className="grid grid-cols-3 gap-6 mx-auto w-fit">
               {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(num => (
@@ -152,7 +182,7 @@ const BiometricOverlay: React.FC<BiometricOverlayProps> = ({ onAuthenticated, is
 
             <button 
               onClick={() => { setMode('biometric'); setPin(''); }}
-              className="text-[10px] font-black text-blue-400 uppercase tracking-widest"
+              className="text-[10px] font-black text-blue-400 uppercase tracking-widest underline underline-offset-8"
             >
               Back to Security Scan
             </button>

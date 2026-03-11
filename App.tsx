@@ -180,7 +180,7 @@ const AppContent: React.FC<{
             <Route path="/bills" element={<Bills notify={notify} processTransaction={processTransaction} />} />
             <Route path="/qr" element={<QRCode user={user} />} />
             <Route path="/ai-assistant" element={<AIAssistant transactions={user.transactions} />} />
-            <Route path="/cards" element={<VirtualCards user={user} setUser={setUser} processTransaction={processTransaction} />} />
+            <Route path="/cards" element={<VirtualCards user={user} setUser={setUser} processTransaction={processTransaction} notify={notify} />} />
             <Route path="/transactions" element={<Transactions transactions={user.transactions} user={user} setUser={setUser} notify={notify} />} />
             <Route path="/savings" element={<Savings user={user} setUser={setUser} processTransaction={processTransaction} />} />
             <Route path="/referrals" element={<Referrals user={user} />} />
@@ -225,7 +225,8 @@ const App: React.FC = () => {
       momentPoints: 50,
       investments: [],
       badges: [],
-      debtInfo: { isBlacklisted: false, totalOwed: 0, owedToId: '', owedToName: '' }
+      debtInfo: { isBlacklisted: false, totalOwed: 0, owedToId: '', owedToName: '' },
+      transactionPin: '1234' // Default for new legacy accounts
     };
   });
 
@@ -289,7 +290,7 @@ const App: React.FC = () => {
     });
   }, [notify]);
 
-  const handleRegister = (name: string, id: string, phone: string) => {
+  const handleRegister = (name: string, id: string, phone: string, pin: string) => {
     const newUser: User = {
       ...user,
       name,
@@ -297,6 +298,7 @@ const App: React.FC = () => {
       payMomentId: id,
       accountNumber: phone.slice(-10),
       balances: { 'NGN': 1000000, 'USD': 0, 'GBP': 0 },
+      transactionPin: pin,
       transactions: [{
         id: 'bonus', type: 'credit', amount: 1000000, title: 'Welcome Bonus', category: 'Reward', timestamp: new Date().toLocaleString(), status: 'completed'
       }]
@@ -317,6 +319,7 @@ const App: React.FC = () => {
         phoneNumber: '08123456789',
         accountNumber: '1234567890',
         balances: { 'NGN': 1000000, 'USD': 45.50, 'GBP': 0 },
+        transactionPin: '1234',
         transactions: [
            { id: '1', type: 'credit', amount: 1000000, title: 'Mock Account Sync', category: 'System', timestamp: new Date().toLocaleString(), status: 'completed' }
         ]

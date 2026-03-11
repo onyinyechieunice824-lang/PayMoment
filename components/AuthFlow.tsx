@@ -1,9 +1,9 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { PayMomentLogo } from '../App';
 
 interface AuthFlowProps {
-  onRegister: (name: string, id: string, phone: string) => void;
+  onRegister: (name: string, id: string, phone: string, pin: string) => void;
   onSignIn: (email: string) => void;
   isDarkMode: boolean;
 }
@@ -15,25 +15,32 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onRegister, onSignIn, isDarkMode })
   const [phone, setPhone] = useState('');
   const [payId, setPayId] = useState('');
   const [pin, setPin] = useState('');
+  const hiddenInputRef = useRef<HTMLInputElement>(null);
 
   const handleNext = () => {
     if (step === 'welcome') setStep('signup');
     else if (step === 'signup') setStep('pin');
     else if (step === 'login') onSignIn(email);
-    else if (step === 'pin' && pin.length === 4) onRegister(name, payId, phone);
+    else if (step === 'pin' && pin.length === 4) onRegister(name, payId, phone, pin);
   };
 
   const goBack = () => setStep('welcome');
 
+  const handleHiddenInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+    setPin(val);
+    if (val.length === 4) {
+      setTimeout(() => onRegister(name, payId, phone, val), 300);
+    }
+  };
+
   return (
     <div className={`fixed inset-0 z-[150] flex flex-col overflow-y-auto overflow-x-hidden no-scrollbar transition-colors duration-500 ${isDarkMode ? 'bg-slate-950' : 'bg-slate-900'}`}>
-      {/* Background Orbs */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-full h-full bg-blue-600/10 rounded-full blur-[120px]"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-full h-full bg-purple-600/10 rounded-full blur-[120px]"></div>
       </div>
 
-      {/* Navigation Header - Simplified to prevent blur-overlap */}
       {step !== 'welcome' && (
         <header className="sticky top-0 z-50 p-6 flex items-center justify-between">
           <button 
@@ -53,12 +60,10 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onRegister, onSignIn, isDarkMode })
       <div className="relative flex-1 flex items-start justify-center p-6 min-h-full">
         <div className="w-full max-w-md py-4 md:py-8 space-y-8">
           
-          {/* STEP 1: WELCOME SCREEN */}
           {step === 'welcome' && (
             <div className="text-center space-y-8 animate-in fade-in slide-in-from-bottom-10 duration-700">
               <div className="space-y-4">
                 <div className="flex justify-center">
-                  {/* REMOVED: problematic drop-shadow that caused blur during scroll */}
                   <PayMomentLogo className="w-28 h-28 md:w-36 md:h-36" />
                 </div>
                 <div className="space-y-1">
@@ -89,7 +94,6 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onRegister, onSignIn, isDarkMode })
             </div>
           )}
 
-          {/* STEP 2: SIGNUP FORM */}
           {step === 'signup' && (
             <div className="space-y-8 animate-in fade-in slide-in-from-right-10 duration-500">
               <div className="space-y-2">
@@ -114,7 +118,6 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onRegister, onSignIn, isDarkMode })
             </div>
           )}
 
-          {/* STEP 3: LOGIN FORM */}
           {step === 'login' && (
             <div className="space-y-8 animate-in fade-in slide-in-from-right-10 duration-500">
               <div className="space-y-2">
@@ -141,19 +144,38 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onRegister, onSignIn, isDarkMode })
             </div>
           )}
 
-          {/* STEP 4: PIN SETUP */}
           {step === 'pin' && (
             <div className="text-center space-y-10 animate-in fade-in slide-in-from-right-10 duration-500">
               <div className="space-y-2">
                 <h2 className="text-4xl font-black text-white tracking-tight italic">Transaction PIN</h2>
-                <p className="text-slate-400 font-medium text-sm">This PIN secures your money transfers.</p>
+                <p className="text-slate-400 font-medium text-sm">Create a PIN to secure your transfers.</p>
               </div>
 
-              <div className="flex justify-center gap-6">
+              {/* UPDATED BOX-STYLE PIN SETUP FOR SIGNUP */}
+              <div className="flex justify-center gap-4" onClick={() => hiddenInputRef.current?.focus()}>
                 {[...Array(4)].map((_, i) => (
-                  <div key={i} className={`w-5 h-5 rounded-full border-2 transition-all duration-300 ${pin.length > i ? 'bg-white border-white scale-125' : 'border-white/20'}`} />
+                  <div 
+                    key={i} 
+                    className={`w-14 h-16 rounded-2xl border-2 flex items-center justify-center transition-all duration-300 ${
+                      pin.length === i ? 'border-blue-500 bg-blue-500/10 scale-110 shadow-[0_0_20px_rgba(59,130,246,0.3)]' : 
+                      pin.length > i ? 'border-white bg-white/10 scale-105' : 'border-white/20 bg-white/5'
+                    }`}
+                  >
+                    {pin.length > i ? (
+                       <span className="text-white text-3xl font-black">{pin[i]}</span>
+                    ) : pin.length === i ? (
+                       <div className="w-1 h-8 bg-blue-500 animate-pulse rounded-full"></div>
+                    ) : null}
+                  </div>
                 ))}
               </div>
+
+              <input 
+                ref={hiddenInputRef}
+                type="tel" pattern="[0-9]*" inputMode="numeric"
+                value={pin} onChange={handleHiddenInputChange}
+                className="absolute opacity-0 pointer-events-none"
+              />
 
               <div className="grid grid-cols-3 gap-6 max-w-xs mx-auto pb-10">
                 {['1','2','3','4','5','6','7','8','9','','0','del'].map((key, i) => (
@@ -175,7 +197,7 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onRegister, onSignIn, isDarkMode })
                 disabled={pin.length < 4}
                 className="w-full py-6 bg-emerald-500 text-white rounded-[2.5rem] font-black uppercase tracking-widest shadow-xl disabled:opacity-50 transition-all active:scale-95"
               >
-                Create Account
+                Complete Account Creation
               </button>
             </div>
           )}
