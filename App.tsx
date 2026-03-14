@@ -1,6 +1,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { HashRouter, Routes, Route, NavLink, useLocation, Navigate, useNavigate } from 'react-router-dom';
+import { onAuthStateChanged, auth, db, signOut, FirebaseUser, handleFirestoreError, OperationType, signInAnonymously } from './src/firebase';
+import { doc, onSnapshot, setDoc, getDoc, updateDoc, collection, query, orderBy, limit, runTransaction } from 'firebase/firestore';
 import Dashboard from './components/Dashboard';
 import AIAssistant from './components/AIAssistant';
 import VirtualCards from './components/VirtualCards';
@@ -34,6 +36,44 @@ interface Notification {
 
 const STORAGE_KEY = 'paymoment_user_data';
 const LOGIN_KEY = 'paymoment_is_logged_in';
+
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, errorInfo: string }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, errorInfo: '' };
+  }
+
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, errorInfo: error.message };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      let displayMessage = "Something went wrong.";
+      try {
+        const parsed = JSON.parse(this.state.errorInfo);
+        if (parsed.error && parsed.error.includes('insufficient permissions')) {
+          displayMessage = "You don't have permission to perform this action. Please check your account status.";
+        }
+      } catch (e) {}
+
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-950 text-center">
+          <div className="text-6xl mb-6">⚠️</div>
+          <h2 className="text-2xl font-black italic tracking-tighter mb-4">Application Error</h2>
+          <p className="text-slate-500 font-medium mb-8 max-w-md">{displayMessage}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl"
+          >
+            Reload App
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export const PayMomentLogo = ({ className = "w-10 h-10", idSuffix = "main" }: { className?: string, idSuffix?: string }) => (
   <div className={className}>
@@ -92,10 +132,20 @@ const AppContent: React.FC<{
   notify: (msg: string, type?: 'success' | 'info' | 'error') => void,
   processTransaction: (tx: Transaction, currency: string) => void,
   onSignOut: () => void,
-  onReset: () => void
-}> = ({ user, setUser, isDarkMode, toggleDarkMode, notify, processTransaction, onSignOut, onReset }) => {
+  onReset: () => void,
+  loading: boolean
+}> = ({ user, setUser, isDarkMode, toggleDarkMode, notify, processTransaction, onSignOut, onReset, loading }) => {
   const location = useLocation();
   const isPublicPath = location.pathname.startsWith('/pay/');
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <PayMomentLogo className="w-16 h-16 animate-pulse mb-4" idSuffix="loading" />
+        <p className="text-slate-500 font-black uppercase tracking-widest text-xs animate-pulse">Securing your session...</p>
+      </div>
+    );
+  }
 
   if (isPublicPath) {
     return (
@@ -182,7 +232,7 @@ const AppContent: React.FC<{
             <Route path="/ai-assistant" element={<AIAssistant transactions={user.transactions} />} />
             <Route path="/cards" element={<VirtualCards user={user} setUser={setUser} processTransaction={processTransaction} notify={notify} />} />
             <Route path="/transactions" element={<Transactions transactions={user.transactions} user={user} setUser={setUser} notify={notify} />} />
-            <Route path="/savings" element={<Savings user={user} setUser={setUser} processTransaction={processTransaction} />} />
+            <Route path="/savings" element={<Savings user={user} setUser={setUser} processTransaction={processTransaction} notify={notify} />} />
             <Route path="/referrals" element={<Referrals user={user} />} />
             <Route path="/profile" element={<Profile user={user} setUser={setUser} notify={notify} onSignOut={onSignOut} onReset={onReset} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />} />
           </Routes>
@@ -203,38 +253,110 @@ const AppContent: React.FC<{
 }
 
 const App: React.FC = () => {
-  const [isRegistered, setIsRegistered] = useState(() => !!localStorage.getItem(STORAGE_KEY));
-  const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem(LOGIN_KEY) === 'true');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState<Notification | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pendingReg, setPendingReg] = useState<any>(null);
 
-  const [user, setUser] = useState<User>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) return JSON.parse(saved);
-    return {
-      name: '',
-      phoneNumber: '',
-      payMomentId: '',
-      balances: { 'NGN': 0, 'USD': 0, 'GBP': 0 },
-      accountNumber: '',
-      tier: 1,
-      verification: { bvn: false, nin: false, address: false, facialMatch: false },
-      transactions: [],
-      beneficiaries: [],
-      paymentLinks: [],
-      momentPoints: 50,
-      investments: [],
-      badges: [],
-      debtInfo: { isBlacklisted: false, totalOwed: 0, owedToId: '', owedToName: '' },
-      transactionPin: '1234' // Default for new legacy accounts
-    };
+  const [user, setUser] = useState<User>({
+    name: '',
+    phoneNumber: '',
+    payMomentId: '',
+    balances: { 'NGN': 0, 'USD': 0, 'GBP': 0 },
+    accountNumber: '',
+    tier: 1,
+    verification: { bvn: false, nin: false, address: false, facialMatch: false },
+    transactions: [],
+    beneficiaries: [],
+    paymentLinks: [],
+    momentPoints: 0,
+    investments: [],
+    badges: [],
+    debtInfo: { isBlacklisted: false, totalOwed: 0, owedToId: '', owedToName: '' },
+    transactionPin: ''
   });
 
   useEffect(() => {
-    if (isRegistered) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+    const unsubscribe = onAuthStateChanged(auth, async (fUser) => {
+      setFirebaseUser(fUser);
+      if (fUser) {
+        try {
+          // Fetch or create user profile
+          const userRef = doc(db, 'users', fUser.uid);
+          let userSnap;
+          try {
+            userSnap = await getDoc(userRef);
+          } catch (error) {
+            handleFirestoreError(error, OperationType.GET, `users/${fUser.uid}`);
+            return;
+          }
+          
+          if (userSnap.exists()) {
+            setUser(userSnap.data() as User);
+          } else {
+            // New user initialization
+            const regData = pendingReg || {
+              name: fUser.displayName || 'New User',
+              payMomentId: `@${fUser.email?.split('@')[0] || Math.random().toString(36).substr(2, 5)}`,
+              phoneNumber: '',
+              transactionPin: '1234'
+            };
+
+            const newUser: User = {
+              name: regData.name,
+              phoneNumber: regData.phoneNumber || '',
+              payMomentId: regData.payMomentId.startsWith('@') ? regData.payMomentId : `@${regData.payMomentId}`,
+              balances: { 'NGN': 1000000, 'USD': 0, 'GBP': 0 },
+              accountNumber: Math.floor(Math.random() * 9000000000 + 1000000000).toString(),
+              tier: 1,
+              verification: { bvn: false, nin: false, address: false, facialMatch: false },
+              transactions: [{
+                id: 'bonus', type: 'credit', amount: 1000000, title: 'Welcome Bonus', category: 'Reward', timestamp: new Date().toLocaleString(), status: 'completed'
+              }],
+              beneficiaries: [],
+              paymentLinks: [],
+              momentPoints: 50,
+              investments: [],
+              badges: [],
+              transactionPin: regData.transactionPin
+            };
+            try {
+              await setDoc(userRef, newUser);
+              setUser(newUser);
+              setPendingReg(null);
+            } catch (error) {
+              handleFirestoreError(error, OperationType.CREATE, `users/${fUser.uid}`);
+            }
+          }
+          setIsLoggedIn(true);
+        } catch (err) {
+          handleFirestoreError(err, OperationType.GET, `users/${fUser.uid}`);
+        }
+      } else {
+        setIsLoggedIn(false);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Real-time listener for user data
+  useEffect(() => {
+    if (firebaseUser) {
+      const unsubscribe = onSnapshot(doc(db, 'users', firebaseUser.uid), (doc) => {
+        if (doc.exists()) {
+          setUser(doc.data() as User);
+        }
+      }, (error) => {
+        handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
+      });
+      return () => unsubscribe();
     }
-  }, [user, isRegistered]);
+  }, [firebaseUser]);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -248,94 +370,70 @@ const App: React.FC = () => {
     setTimeout(() => setNotification(null), 4000);
   }, []);
 
-  const processTransaction = useCallback((tx: Transaction, currency: string = 'NGN') => {
-    setUser(prev => {
-      let updatedUser = { ...prev };
-      const updatedBalances = { ...prev.balances };
-      
-      if (tx.type === 'debit') {
-        updatedBalances[currency] -= tx.amount;
-      } else {
-        if (currency === 'NGN' && prev.debtInfo?.isBlacklisted && prev.debtInfo.totalOwed > 0) {
-          const sweepAmount = Math.min(tx.amount, prev.debtInfo.totalOwed);
-          updatedBalances[currency] += (tx.amount - sweepAmount);
-          const updatedDebt = prev.debtInfo.totalOwed - sweepAmount;
-          updatedUser.debtInfo = {
-            ...prev.debtInfo,
-            totalOwed: updatedDebt,
-            isBlacklisted: updatedDebt > 0 
-          };
-          const recoveryTx: Transaction = {
-            id: `recovery-${Math.random().toString(36).substr(2, 5)}`,
-            type: 'debit',
-            amount: sweepAmount,
-            title: `Auto-Recovery for ${prev.debtInfo.owedToName}`,
-            category: 'Debt Settlement',
-            timestamp: new Date().toLocaleString(),
-            status: 'completed'
-          };
-          updatedUser.transactions = [recoveryTx, tx, ...prev.transactions];
-          setTimeout(() => notify(`₦${sweepAmount.toLocaleString()} swept to clear your debt.`, 'info'), 100);
+  const processTransaction = useCallback(async (tx: Transaction, currency: string = 'NGN') => {
+    if (!firebaseUser) return;
+
+    try {
+      await runTransaction(db, async (transaction) => {
+        const userRef = doc(db, 'users', firebaseUser.uid);
+        const userSnap = await transaction.get(userRef);
+        if (!userSnap.exists()) throw "User does not exist!";
+
+        const userData = userSnap.data() as User;
+        const updatedBalances = { ...userData.balances };
+        
+        if (tx.type === 'debit') {
+          if (updatedBalances[currency] < tx.amount) throw "Insufficient balance";
+          updatedBalances[currency] -= tx.amount;
         } else {
           updatedBalances[currency] += tx.amount;
-          updatedUser.transactions = [tx, ...prev.transactions];
         }
-      }
 
-      return {
-        ...updatedUser,
-        balances: updatedBalances,
-        momentPoints: prev.momentPoints + Math.floor(tx.amount / 1000)
-      };
-    });
-  }, [notify]);
+        transaction.update(userRef, {
+          balances: updatedBalances,
+          transactions: [tx, ...userData.transactions],
+          momentPoints: userData.momentPoints + Math.floor(tx.amount / 1000)
+        });
 
-  const handleRegister = (name: string, id: string, phone: string, pin: string) => {
-    const newUser: User = {
-      ...user,
-      name,
-      phoneNumber: phone,
-      payMomentId: id,
-      accountNumber: phone.slice(-10),
-      balances: { 'NGN': 1000000, 'USD': 0, 'GBP': 0 },
-      transactionPin: pin,
-      transactions: [{
-        id: 'bonus', type: 'credit', amount: 1000000, title: 'Welcome Bonus', category: 'Reward', timestamp: new Date().toLocaleString(), status: 'completed'
-      }]
-    };
-    setUser(newUser);
-    setIsRegistered(true);
-    setIsLoggedIn(true);
-    localStorage.setItem(LOGIN_KEY, 'true');
-    notify("Welcome to PayMoment!", "success");
-  };
+        // Handle recipient if internal transfer
+        if (tx.recipientUid && tx.type === 'debit') {
+          const recipientRef = doc(db, 'users', tx.recipientUid);
+          const recipientSnap = await transaction.get(recipientRef);
+          
+          if (recipientSnap.exists()) {
+            const recipientData = recipientSnap.data() as User;
+            const recipientBalances = { ...recipientData.balances };
+            recipientBalances[currency] = (recipientBalances[currency] || 0) + tx.amount;
+            
+            const creditTx: Transaction = {
+              ...tx,
+              id: `credit-${tx.id}`,
+              type: 'credit',
+              senderUid: firebaseUser.uid,
+              title: `Received from ${userData.name}`
+            };
 
-  const handleSignIn = (email: string) => {
-    if (!user.name) {
-      setUser({
-        ...user,
-        name: 'Agua Ebubechukwu Samuel',
-        payMomentId: 'agua_pay',
-        phoneNumber: '08123456789',
-        accountNumber: '1234567890',
-        balances: { 'NGN': 1000000, 'USD': 45.50, 'GBP': 0 },
-        transactionPin: '1234',
-        transactions: [
-           { id: '1', type: 'credit', amount: 1000000, title: 'Mock Account Sync', category: 'System', timestamp: new Date().toLocaleString(), status: 'completed' }
-        ]
+            transaction.update(recipientRef, {
+              balances: recipientBalances,
+              transactions: [creditTx, ...recipientData.transactions]
+            });
+          }
+        }
       });
+      notify("Transaction successful", "success");
+    } catch (error) {
+      console.error("Transaction failed:", error);
+      if (typeof error === 'string') {
+        notify(error, "error");
+      } else {
+        handleFirestoreError(error, OperationType.UPDATE, `users/${firebaseUser.uid}`);
+      }
     }
-    
-    setIsRegistered(true);
-    setIsLoggedIn(true);
-    localStorage.setItem(LOGIN_KEY, 'true');
-    notify("Authenticated successfully.", "success");
-  };
+  }, [firebaseUser, user, notify]);
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
+    await signOut(auth);
     setIsLoggedIn(false);
-    setIsRegistered(false);
-    localStorage.setItem(LOGIN_KEY, 'false');
     notify("Signed out successfully.", "info");
   };
 
@@ -344,41 +442,60 @@ const App: React.FC = () => {
     window.location.reload();
   };
 
-  if (!isRegistered) {
-    return <AuthFlow onRegister={handleRegister} onSignIn={handleSignIn} isDarkMode={isDarkMode} />;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <PayMomentLogo className="w-16 h-16 animate-pulse mb-4" idSuffix="app-loading" />
+        <p className="text-slate-500 font-black uppercase tracking-widest text-xs animate-pulse">Initializing PayMoment...</p>
+      </div>
+    );
   }
 
-  if (!isLoggedIn && !window.location.hash.includes('/pay/')) {
-    return <BiometricOverlay onAuthenticated={() => {
-        setIsLoggedIn(true);
-        localStorage.setItem(LOGIN_KEY, 'true');
-    }} isDarkMode={isDarkMode} userName={user.name || 'Agua Ebubechukwu Samuel'} user={user} />;
+  if (!isLoggedIn) {
+    return (
+      <AuthFlow 
+        onRegister={async (name, id, phone, pin) => {
+          setPendingReg({ name, payMomentId: id, phoneNumber: phone, transactionPin: pin });
+          try {
+            await signInAnonymously(auth);
+          } catch (err) {
+            console.error("Registration failed", err);
+            notify("Registration failed. Please try again.", "error");
+          }
+        }} 
+        onSignIn={() => {}} 
+        isDarkMode={isDarkMode} 
+      />
+    );
   }
 
   return (
     <HashRouter>
-      <div className={isDarkMode ? 'dark' : ''}>
-        {notification && (
-          <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-sm animate-in slide-in-from-top-4">
-            <div className={`px-6 py-4 rounded-3xl shadow-2xl border ${
-              notification.type === 'success' ? 'bg-emerald-600 border-emerald-500 text-white' : 
-              notification.type === 'error' ? 'bg-rose-600 border-rose-500 text-white' : 'bg-indigo-700 border-indigo-600 text-white'
-            }`}>
-              <p className="font-bold text-sm">{notification.message}</p>
+      <ErrorBoundary>
+        <div className={isDarkMode ? 'dark' : ''}>
+          {notification && (
+            <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-sm animate-in slide-in-from-top-4">
+              <div className={`px-6 py-4 rounded-3xl shadow-2xl border ${
+                notification.type === 'success' ? 'bg-emerald-600 border-emerald-500 text-white' : 
+                notification.type === 'error' ? 'bg-rose-600 border-rose-500 text-white' : 'bg-indigo-700 border-indigo-600 text-white'
+              }`}>
+                <p className="font-bold text-sm">{notification.message}</p>
+              </div>
             </div>
-          </div>
-        )}
-        <AppContent 
-          user={user} 
-          setUser={setUser} 
-          isDarkMode={isDarkMode} 
-          toggleDarkMode={() => setIsDarkMode(!isDarkMode)} 
-          notify={notify} 
-          processTransaction={processTransaction}
-          onSignOut={handleSignOut}
-          onReset={handleReset}
-        />
-      </div>
+          )}
+          <AppContent 
+            user={user} 
+            setUser={setUser} 
+            isDarkMode={isDarkMode} 
+            toggleDarkMode={() => setIsDarkMode(!isDarkMode)} 
+            notify={notify} 
+            processTransaction={processTransaction}
+            onSignOut={handleSignOut}
+            onReset={handleReset}
+            loading={loading}
+          />
+        </div>
+      </ErrorBoundary>
     </HashRouter>
   );
 };

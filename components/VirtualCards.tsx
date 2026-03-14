@@ -1,57 +1,19 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Transaction } from '../types';
-
-interface CardData {
-  id: string;
-  label: string;
-  number: string;
-  expiry: string;
-  cvv: string;
-  type: 'VISA' | 'MASTERCARD';
-  currency: 'NGN' | 'USD';
-  balance: number;
-  monthlyLimit?: number;
-  isPhysical?: boolean;
-  status?: 'active' | 'pending' | 'blocked';
-}
+import { auth, db, handleFirestoreError, OperationType } from '../src/firebase';
+import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { Transaction, CardData, User } from '../types';
 
 interface VirtualCardsProps {
-  user: any;
-  setUser: (user: any) => void;
+  user: User;
+  setUser: (user: User) => void;
   processTransaction: (tx: Transaction, currency: string) => void;
   notify: (msg: string, type?: 'success' | 'info' | 'error') => void;
 }
 
 const VirtualCards: React.FC<VirtualCardsProps> = ({ user, setUser, processTransaction, notify }) => {
   const navigate = useNavigate();
-  const [cards, setCards] = useState<CardData[]>([
-    {
-      id: '1',
-      label: 'Main NGN Card',
-      number: '5399 4022 1234 5678',
-      expiry: '10/26',
-      cvv: '123',
-      type: 'MASTERCARD',
-      currency: 'NGN',
-      balance: 245600.50,
-      monthlyLimit: 500000,
-      isPhysical: true
-    },
-    {
-      id: '2',
-      label: 'Netflix & Chill',
-      number: '4822 9012 3456 7890',
-      expiry: '12/28',
-      cvv: '981',
-      type: 'VISA',
-      currency: 'USD',
-      balance: 45.50,
-      monthlyLimit: 100
-    }
-  ]);
-
   const [isCreating, setIsCreating] = useState(false);
   const [isRequestingPhysical, setIsRequestingPhysical] = useState(false);
   
@@ -69,10 +31,17 @@ const VirtualCards: React.FC<VirtualCardsProps> = ({ user, setUser, processTrans
   });
   const [isOrderingPhysical, setIsOrderingPhysical] = useState(false);
 
-  const generateCard = () => {
-    if (!newCardLabel.trim()) return;
+  const generateCard = async () => {
+    if (!newCardLabel.trim() || !auth.currentUser) return;
+    
+    const issuanceFee = newCardCurrency === 'NGN' ? 1000 : 5;
+    if (user.balances[newCardCurrency] < issuanceFee) {
+      notify(`Insufficient ${newCardCurrency} balance for card issuance fee.`, "error");
+      return;
+    }
+
     setIsGenerating(true);
-    setTimeout(() => {
+    try {
       const newCard: CardData = {
         id: Math.random().toString(36).substr(2, 9),
         label: newCardLabel,
@@ -82,24 +51,56 @@ const VirtualCards: React.FC<VirtualCardsProps> = ({ user, setUser, processTrans
         type: newCardNetwork,
         currency: newCardCurrency,
         balance: 0,
-        monthlyLimit: newCardCurrency === 'NGN' ? 500000 : 1000
+        monthlyLimit: newCardCurrency === 'NGN' ? 500000 : 1000,
+        status: 'active'
       };
-      setCards([...cards, newCard]);
+
+      const tx: Transaction = {
+        id: Math.random().toString(36).substr(2, 9),
+        type: 'debit',
+        amount: issuanceFee,
+        title: `Virtual Card Issuance - ${newCardLabel}`,
+        category: 'Service Fee',
+        timestamp: new Date().toLocaleString(),
+        status: 'completed'
+      };
+
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      try {
+        await updateDoc(userRef, {
+          cards: arrayUnion(newCard),
+        });
+      } catch (err) {
+        handleFirestoreError(err, OperationType.UPDATE, `users/${auth.currentUser.uid}`);
+      }
+      
+      await processTransaction(tx, newCardCurrency);
+
       setNewCardLabel('');
       setIsCreating(false);
       setIsGenerating(false);
       notify("Virtual card deployed successfully!", "success");
-    }, 2000);
+    } catch (error) {
+      console.error("Card generation failed", error);
+      notify("Failed to issue card. Please try again.", "error");
+      setIsGenerating(false);
+    }
   };
 
-  const handlePhysicalOrder = () => {
-    if (!address.street || !address.city || !address.state) {
+  const handlePhysicalOrder = async () => {
+    if (!address.street || !address.city || !address.state || !auth.currentUser) {
       notify("Please fill in your complete delivery address.", "error");
+      return;
+    }
+
+    const deliveryFee = 1500;
+    if (user.balances['NGN'] < deliveryFee) {
+      notify("Insufficient NGN balance for delivery fee.", "error");
       return;
     }
     
     setIsOrderingPhysical(true);
-    setTimeout(() => {
+    try {
       const newPhysicalCard: CardData = {
         id: Math.random().toString(36).substr(2, 9),
         label: 'Physical Debit Card',
@@ -112,12 +113,39 @@ const VirtualCards: React.FC<VirtualCardsProps> = ({ user, setUser, processTrans
         isPhysical: true,
         status: 'pending'
       };
-      setCards([...cards, newPhysicalCard]);
+
+      const tx: Transaction = {
+        id: Math.random().toString(36).substr(2, 9),
+        type: 'debit',
+        amount: deliveryFee,
+        title: `Physical Card Order Fee`,
+        category: 'Service Fee',
+        timestamp: new Date().toLocaleString(),
+        status: 'completed'
+      };
+
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      try {
+        await updateDoc(userRef, {
+          cards: arrayUnion(newPhysicalCard),
+        });
+      } catch (err) {
+        handleFirestoreError(err, OperationType.UPDATE, `users/${auth.currentUser.uid}`);
+      }
+
+      await processTransaction(tx, 'NGN');
+
       setIsOrderingPhysical(false);
       setIsRequestingPhysical(false);
       notify("Physical card order placed! It will arrive in 3-5 business days.", "success");
-    }, 2500);
+    } catch (error) {
+      console.error("Physical card order failed", error);
+      notify("Failed to place order. Please try again.", "error");
+      setIsOrderingPhysical(false);
+    }
   };
+
+  const displayCards = user.cards || [];
 
   return (
     <div className="space-y-10 pb-20">
@@ -150,7 +178,7 @@ const VirtualCards: React.FC<VirtualCardsProps> = ({ user, setUser, processTrans
       </div>
 
       {/* PHYSICAL CARD AD BANNER */}
-      {!cards.some(c => c.isPhysical && c.status === 'pending') && (
+      {!displayCards.some(c => c.isPhysical && c.status === 'pending') && (
         <div 
           onClick={() => setIsRequestingPhysical(true)}
           className="bg-gradient-to-r from-blue-700 to-indigo-900 rounded-[2.5rem] p-8 md:p-10 text-white shadow-2xl relative overflow-hidden group cursor-pointer active:scale-[0.98] transition-all"
@@ -175,7 +203,7 @@ const VirtualCards: React.FC<VirtualCardsProps> = ({ user, setUser, processTrans
       )}
 
       <div className="grid gap-8 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
-        {cards.map((card) => (
+        {displayCards.map((card) => (
           <div 
             key={card.id} 
             className={`relative aspect-[1.6/1] w-full rounded-[2.5rem] p-8 text-white shadow-2xl overflow-hidden group cursor-pointer transition-all hover:scale-[1.02] tap-scale ${

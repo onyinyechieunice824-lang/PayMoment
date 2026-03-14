@@ -51,3 +51,39 @@ export const analyzeFinances = async (query: string, transactions: Transaction[]
     return "PayAI is currently resting. Please try again in a bit.";
   }
 };
+
+export const resolveAccountName = async (accountNumber: string, bank: string) => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) return null;
+
+  const ai = new GoogleGenAI({ apiKey });
+  
+  const prompt = `
+    Resolve the Nigerian bank account name for:
+    Account Number: ${accountNumber}
+    Bank: ${bank}
+    
+    Rules:
+    1. Generate a realistic-sounding Nigerian full name (First Name, Middle Name, Last Name).
+    2. The name MUST be deterministic based on the account number. Use the digits of the account number to influence the name choice.
+    3. Return ONLY the full name in uppercase. No extra text, no punctuation.
+    4. Example: CHUKWUDI EMEKA OKORO
+    5. If the bank is "PayMoment", assume the user is looking for an internal account (handled separately, but provide a name if asked).
+    
+    Context: This is for a high-end fintech app. The names should sound professional.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        temperature: 0, // Deterministic
+      },
+    });
+    return response.text?.trim().toUpperCase() || null;
+  } catch (error) {
+    console.error("Account Resolution Error:", error);
+    return null;
+  }
+};

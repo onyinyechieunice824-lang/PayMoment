@@ -1,0 +1,77 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Stores user account details, balances, and history",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "payMomentId": { "type": "string", "description": "Unique @handle" },
+        "accountNumber": { "type": "string" },
+        "balances": { 
+          "type": "object",
+          "description": "Map of currency codes to amounts"
+        },
+        "tier": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "verification": { "type": "object" },
+        "transactions": { "type": "array", "items": { "$ref": "Transaction" } },
+        "beneficiaries": { "type": "array", "items": { "$ref": "Beneficiary" } },
+        "paymentLinks": { "type": "array" },
+        "momentPoints": { "type": "integer" },
+        "investments": { "type": "array" },
+        "badges": { "type": "array" },
+        "transactionPin": { "type": "string" },
+        "cards": { "type": "array" },
+        "savings": { "type": "array" }
+      },
+      "required": ["name", "payMomentId", "accountNumber", "balances"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Financial records for all movements",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string", "enum": ["credit", "debit"] },
+        "category": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["completed", "pending", "failed"] },
+        "recipientId": { "type": "string" },
+        "senderId": { "type": "string" }
+      },
+      "required": ["userId", "amount", "type", "timestamp"]
+    },
+    "Beneficiary": {
+      "title": "Beneficiary",
+      "description": "Saved recipients for easy transfers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "accountNumber": { "type": "string" },
+        "bank": { "type": "string" },
+        "avatar": { "type": "string" }
+      },
+      "required": ["userId", "name", "accountNumber", "bank"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "User profile documents"
+    },
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Global transactions collection"
+    },
+    "/users/{uid}/beneficiaries/{beneficiaryId}": {
+      "schema": "Beneficiary",
+      "description": "User-specific beneficiaries"
+    }
+  }
+}

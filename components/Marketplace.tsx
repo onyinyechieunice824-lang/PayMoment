@@ -1,6 +1,8 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { auth, db } from '../src/firebase';
+import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { User, Transaction } from '../types';
 
 interface MarketplaceProps {
@@ -20,6 +22,34 @@ const GIFT_CARDS = [
 const Marketplace: React.FC<MarketplaceProps> = ({ user, setUser, notify, processTransaction }) => {
   const navigate = useNavigate();
   const [activeView, setActiveView] = useState<'hub' | 'giftcards' | 'airtime2cash'>('hub');
+
+  const handleBuyGiftCard = async (card: any) => {
+    const amount = 5000; // Fixed amount for demo
+    if (user.balances['NGN'] < amount) {
+      notify("Insufficient balance", "error");
+      return;
+    }
+
+    if (!auth.currentUser) return;
+
+    try {
+      const tx: Transaction = {
+        id: Math.random().toString(36).substr(2, 9),
+        type: 'debit',
+        amount: amount,
+        title: `Bought ${card.name} Gift Card`,
+        category: 'Shopping',
+        timestamp: new Date().toLocaleString(),
+        status: 'completed'
+      };
+      
+      processTransaction(tx, 'NGN');
+      notify(`Successfully bought ${card.name} Gift Card!`, 'success');
+      setActiveView('hub');
+    } catch (error) {
+      notify("Purchase failed", "error");
+    }
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-10">
@@ -66,7 +96,7 @@ const Marketplace: React.FC<MarketplaceProps> = ({ user, setUser, notify, proces
            <h3 className="text-xl font-black italic tracking-tight text-slate-900 dark:text-white">Select Provider</h3>
            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {GIFT_CARDS.map(card => (
-                <div key={card.id} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col items-center gap-4 cursor-pointer hover:border-amber-500 transition-all group tap-scale">
+                <div key={card.id} onClick={() => handleBuyGiftCard(card)} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col items-center gap-4 cursor-pointer hover:border-amber-500 transition-all group tap-scale">
                    <div className={`w-16 h-16 rounded-2xl ${card.color} flex items-center justify-center text-3xl group-hover:rotate-12 transition-transform`}>
                       {card.icon}
                    </div>

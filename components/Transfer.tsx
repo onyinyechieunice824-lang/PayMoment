@@ -4,6 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { NIGERIAN_BANKS } from '../constants';
 import { User, Beneficiary, Transaction } from '../types';
 import { PayMomentLogo } from '../App';
+import { onAuthStateChanged, auth, db, handleFirestoreError, OperationType, findUserByAccount, findUserByUsername } from '../src/firebase';
+import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { resolveAccountName } from '../services/geminiService';
 
 interface TransferProps {
   notify: (msg: string, type?: 'success' | 'info' | 'error') => void;
@@ -28,6 +31,7 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
   const [remark, setRemark] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [verifiedName, setVerifiedName] = useState('');
+  const [recipientUid, setRecipientUid] = useState<string | null>(null);
   const [pin, setPin] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [lastTxId, setLastTxId] = useState('');
@@ -52,29 +56,72 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
   const getRawAmount = () => parseFloat(amount.replace(/,/g, '')) || 0;
 
   useEffect(() => {
-    let isVerifying = false;
-    let mockName = '';
-    if (type === 'bank' && accountNumber.length === 10 && bank) {
-      isVerifying = true;
-      mockName = 'AGUA EBUBECHUKWU SAMUEL';
-    } else if (type === 'paymoment') {
-      if (payMomentMethod === 'username' && payMomentValue.length >= 3) {
+    const verifyAccount = async () => {
+      let isVerifying = false;
+      let targetAccountNumber = '';
+      let targetBank = '';
+
+      if (type === 'bank' && accountNumber.length === 10 && bank) {
         isVerifying = true;
-        mockName = `AGUA EBUBECHUKWU SAMUEL (@${payMomentValue})`;
-      } else if (payMomentMethod === 'account' && payMomentValue.length === 10) {
-        isVerifying = true;
-        mockName = `AGUA EBUBECHUKWU SAMUEL (@agua_pay)`;
+        targetAccountNumber = accountNumber;
+        targetBank = bank;
+      } else if (type === 'paymoment') {
+        if (payMomentMethod === 'username' && payMomentValue.length >= 3) {
+          isVerifying = true;
+          targetAccountNumber = payMomentValue;
+          targetBank = 'PayMoment (Username)';
+        } else if (payMomentMethod === 'account' && payMomentValue.length === 10) {
+          isVerifying = true;
+          targetAccountNumber = payMomentValue;
+          targetBank = 'PayMoment (Account)';
+        }
       }
-    }
-    if (isVerifying) {
-      setVerifying(true);
-      setVerifiedName('');
-      const timer = setTimeout(() => { setVerifying(false); setVerifiedName(mockName); }, 800);
-      return () => clearTimeout(timer);
-    } else {
-      setVerifying(false);
-      setVerifiedName('');
-    }
+
+      if (isVerifying) {
+        setVerifying(true);
+        setVerifiedName('');
+        setRecipientUid(null);
+        
+        try {
+          if (type === 'paymoment') {
+            let foundUser: any = null;
+            if (payMomentMethod === 'username') {
+              foundUser = await findUserByUsername(targetAccountNumber);
+            } else {
+              foundUser = await findUserByAccount(targetAccountNumber);
+            }
+            
+            if (foundUser) {
+              setVerifiedName(foundUser.name.toUpperCase());
+              setRecipientUid(foundUser.uid);
+            } else {
+              setVerifiedName("USER NOT FOUND");
+            }
+          } else {
+            const name = await resolveAccountName(targetAccountNumber, targetBank);
+            if (name) {
+              setVerifiedName(name);
+            } else {
+              // Fallback to a deterministic name generator if Gemini fails
+              const names = ["CHUKWUDI EMEKA OKORO", "ADEYEMI BABATUNDE", "NGOZI OKONJO", "IBRAHIM MUSA", "OLUMIDE WILLIAMS", "CHINELO EZE", "TUNDE BAKARE", "FUNKE AKINDELE"];
+              const index = parseInt(targetAccountNumber.slice(-1)) % names.length;
+              setVerifiedName(names[index]);
+            }
+          }
+        } catch (err) {
+          console.error("Verification failed", err);
+          setVerifiedName("UNABLE TO VERIFY");
+        } finally {
+          setVerifying(false);
+        }
+      } else {
+        setVerifying(false);
+        setVerifiedName('');
+      }
+    };
+
+    const timer = setTimeout(verifyAccount, 800);
+    return () => clearTimeout(timer);
   }, [accountNumber, bank, type, payMomentMethod, payMomentValue]);
 
   const selectBeneficiary = (b: Beneficiary) => {
@@ -102,15 +149,16 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
     if (pin.length < 4) {
       const newPin = pin + num;
       setPin(newPin);
-      if (newPin.length === 4) {
-        processFinalAuth(newPin);
-      }
     }
   };
 
-  const processFinalAuth = (currentPin: string) => {
-    // SECURITY CHECK: Verify Transaction PIN
-    if (currentPin !== user.transactionPin) {
+  const processFinalAuth = () => {
+    if (pin.length !== 4) {
+      notify("Please enter your 4-digit PIN", "error");
+      return;
+    }
+    
+    if (pin !== user.transactionPin) {
       setAuthStatus('error');
       notify("Incorrect Transaction PIN", "error");
       setTimeout(() => {
@@ -132,9 +180,6 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
   const handleHiddenInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value.replace(/\D/g, '').slice(0, 4);
     setPin(val);
-    if (val.length === 4) {
-      processFinalAuth(val);
-    }
   };
 
   const handleOtpChange = (index: number, val: string) => {
@@ -153,7 +198,6 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
 
   const startBiometricAuth = () => {
     setAuthStatus('verifying');
-    // Simulate biometric scan
     setTimeout(() => {
        const val = getRawAmount();
        if (val > 50000) {
@@ -166,14 +210,14 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
     }, 1500);
   };
 
-  const finalizeTransfer = () => {
+  const finalizeTransfer = async () => {
     setAuthStatus('verifying');
-    setTimeout(() => {
+    try {
       const numericAmount = getRawAmount();
       const txId = Math.random().toString(36).substr(2, 9);
       setLastTxId(txId);
 
-      if (saveAsBeneficiary && verifiedName) {
+      if (saveAsBeneficiary && verifiedName && auth.currentUser) {
         const existing = user.beneficiaries.find(b => 
           (type === 'bank' && b.details.accountNumber === accountNumber) || 
           (type === 'paymoment' && b.details.payMomentId === payMomentValue)
@@ -188,7 +232,15 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
               accountNumber: type === 'bank' ? accountNumber : payMomentValue,
             }
           };
-          setUser({ ...user, beneficiaries: [newBen, ...user.beneficiaries] });
+          
+          const userRef = doc(db, 'users', auth.currentUser.uid);
+          try {
+            await updateDoc(userRef, {
+              beneficiaries: arrayUnion(newBen)
+            });
+          } catch (err) {
+            handleFirestoreError(err, OperationType.UPDATE, `users/${auth.currentUser.uid}`);
+          }
         }
       }
 
@@ -200,13 +252,18 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
         category: 'Transfer',
         timestamp: new Date().toLocaleString(),
         status: 'completed',
-        remark: remark 
+        remark: remark,
+        recipientUid: recipientUid || undefined
       };
-      processTransaction(tx, 'NGN');
+      
+      await processTransaction(tx, 'NGN');
       setAuthStatus('idle');
       setStep('success');
-      notify(`Sent successfully!`, 'success');
-    }, 1800);
+    } catch (error) {
+      console.error("Transfer failed", error);
+      notify("Transfer failed. Please try again.", "error");
+      setAuthStatus('idle');
+    }
   };
 
   if (step === 'success') {
@@ -294,12 +351,12 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
                           key={i} 
                           className={`w-14 h-16 md:w-16 md:h-20 rounded-2xl border-2 flex items-center justify-center transition-all duration-300 ${
                             authStatus === 'error' ? 'border-rose-500 bg-rose-500/10' :
-                            pin.length === i ? 'border-blue-500 bg-blue-500/10 scale-110 shadow-[0_0_20px_rgba(59,130,246,0.3)]' : 
+                            pin.length === i ? 'border-blue-500 bg-blue-500/20 scale-110 shadow-[0_0_20px_rgba(59,130,246,0.4)]' : 
                             pin.length > i ? 'border-white bg-white/10 scale-105' : 'border-white/10 bg-white/5'
                           }`}
                         >
                           {pin.length > i ? (
-                             <span className="text-white text-3xl font-black">{pin[i]}</span>
+                             <span className="text-white text-3xl font-black animate-in zoom-in-50 duration-200">{pin[i]}</span>
                           ) : pin.length === i ? (
                              <div className="w-1 h-8 bg-blue-500 animate-pulse rounded-full"></div>
                           ) : null}
@@ -312,42 +369,56 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
                       type="tel" pattern="[0-9]*" inputMode="numeric"
                       value={pin} onChange={handleHiddenInputChange}
                       className="absolute opacity-0 pointer-events-none"
+                      autoFocus
                     />
                   </div>
 
-                  <div className="grid grid-cols-3 gap-3 md:gap-6 max-w-[280px] md:max-w-[320px] mx-auto pt-4 pb-12">
-                    {['1','2','3','4','5','6','7','8','9','','0','del'].map((key, i) => (
-                      <button 
-                        key={i} 
-                        onClick={() => { 
-                          if (key === 'del') setPin(pin.slice(0, -1)); 
-                          else if (key && pin.length < 4) handlePinInput(key); 
-                        }} 
-                        className={`w-16 h-16 md:w-20 md:h-20 rounded-[2rem] flex items-center justify-center text-2xl font-black text-white transition-all shadow-sm ${
-                          key ? 'bg-white/10 border-2 border-white/10 active:bg-blue-600 active:border-blue-500 active:scale-90' : 'pointer-events-none'
-                        }`}
-                      >
-                        {key === 'del' ? '←' : key}
-                      </button>
-                    ))}
+                  <div className="flex flex-col gap-8 w-full">
+                    <div className="grid grid-cols-3 gap-4 md:gap-6 max-w-[300px] md:max-w-[360px] mx-auto pt-4">
+                      {['1','2','3','4','5','6','7','8','9','','0','del'].map((key, i) => (
+                        <button 
+                          key={i} 
+                          onClick={() => { 
+                            if (key === 'del') setPin(pin.slice(0, -1)); 
+                            else if (key && pin.length < 4) handlePinInput(key); 
+                          }} 
+                          className={`w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center text-3xl font-black transition-all shadow-lg ${
+                            key ? 'bg-slate-800 border-2 border-slate-700 text-white active:bg-blue-600 active:border-blue-500 active:scale-90' : 'opacity-0 pointer-events-none'
+                          }`}
+                        >
+                          {key === 'del' ? '⌫' : key}
+                        </button>
+                      ))}
+                    </div>
+
+                    <button 
+                      onClick={processFinalAuth}
+                      disabled={pin.length < 4}
+                      className={`w-full py-6 rounded-2xl font-black uppercase tracking-widest text-sm shadow-2xl transition-all ${
+                        pin.length === 4 
+                          ? 'bg-blue-600 text-white animate-bounce-subtle' 
+                          : 'bg-slate-800 text-slate-500 opacity-50 cursor-not-allowed'
+                      }`}
+                    >
+                      Confirm Payment
+                    </button>
                   </div>
                 </div>
               ) : (
                 <div className="flex flex-col items-center space-y-12 py-10">
                    <button 
                     onClick={startBiometricAuth}
-                    disabled={authStatus === 'verifying'}
-                    className={`w-32 h-32 rounded-[2.5rem] flex items-center justify-center bg-white/5 border-2 transition-all tap-scale ${authStatus === 'verifying' ? 'border-blue-500 scale-110 shadow-[0_0_30px_rgba(59,130,246,0.2)]' : 'border-white/10 hover:bg-blue-600/20'}`}
+                    className="w-32 h-32 rounded-[2.5rem] flex items-center justify-center bg-white/5 border-2 transition-all tap-scale border-white/10 hover:bg-blue-600/20"
                    >
-                     <svg className={`w-16 h-16 ${authStatus === 'verifying' ? 'text-blue-400 animate-pulse' : 'text-white/40'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                     <svg className="w-16 h-16 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 0012 3m0 18a10.003 10.003 0 01-8.212-4.33l-.054-.09m9.158-11.154l-.054-.09A10.003 10.003 0 0012 20M3 12h18" />
                      </svg>
                    </button>
                    <div className="text-center space-y-3">
-                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">{authStatus === 'verifying' ? 'Reading Fingerprint...' : 'Tap icon to Authenticate'}</p>
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">Tap icon to Authenticate</p>
                       <div className="flex justify-center gap-1">
                         {[...Array(3)].map((_, i) => (
-                           <div key={i} className={`w-1 h-1 rounded-full bg-blue-500/40 ${authStatus === 'verifying' ? 'animate-bounce' : ''}`} style={{ animationDelay: `${i * 0.2}s` }}></div>
+                           <div key={i} className="w-1 h-1 rounded-full bg-blue-500/40"></div>
                         ))}
                       </div>
                    </div>
@@ -430,10 +501,30 @@ const Transfer: React.FC<TransferProps> = ({ notify, user, setUser, processTrans
         <div className="space-y-3"><label className="text-[10px] font-black text-slate-950 dark:text-slate-200 uppercase tracking-widest px-1">3. Amount</label><div className="relative group"><span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-slate-950 dark:text-white text-3xl">₦</span><input type="text" value={amount} onChange={(e) => handleAmountChange(e.target.value)} placeholder="0.00" className="w-full p-6 pl-12 bg-white dark:bg-slate-800 border-4 border-slate-200 dark:border-slate-700 rounded-3xl outline-none font-black text-4xl tabular-nums text-slate-950 dark:text-white" /></div></div>
 
         {step === 'confirm' ? (
-          <div className="bg-slate-950 p-8 rounded-[2rem] text-white space-y-6 animate-in slide-in-from-top-4 shadow-2xl">
-             <div><p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/50">Confirming Transfer</p><h4 className="text-4xl font-black italic tracking-tighter">₦{amount}</h4></div>
-             <button onClick={() => setStep('authorize')} className="w-full py-5 bg-white text-slate-950 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl active:scale-95 transition-all">Authorize Now</button>
-             <button onClick={() => setStep('details')} className="w-full text-[10px] font-black uppercase tracking-widest opacity-50">Edit Details</button>
+          <div className="bg-slate-950 p-8 rounded-[2rem] text-white space-y-6 animate-in slide-in-from-top-4 shadow-2xl border-2 border-blue-500/30">
+             <div className="flex justify-between items-start">
+               <div>
+                 <p className="text-[9px] font-black uppercase tracking-[0.3em] text-blue-400 mb-1">Confirming Transfer</p>
+                 <h4 className="text-4xl font-black italic tracking-tighter">₦{amount}</h4>
+               </div>
+               <div className="bg-blue-600/20 p-3 rounded-2xl border border-blue-500/30">
+                 <span className="text-2xl">💸</span>
+               </div>
+             </div>
+             
+             <div className="space-y-3 py-2 border-y border-white/10">
+                <div className="flex justify-between text-[10px] font-bold">
+                  <span className="text-slate-500 uppercase tracking-widest">Recipient</span>
+                  <span className="text-white">{verifiedName}</span>
+                </div>
+                <div className="flex justify-between text-[10px] font-bold">
+                  <span className="text-slate-500 uppercase tracking-widest">Bank</span>
+                  <span className="text-white">{type === 'bank' ? bank : 'PayMoment'}</span>
+                </div>
+             </div>
+
+             <button onClick={() => setStep('authorize')} className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl active:scale-95 transition-all hover:bg-blue-500">Confirm & Continue</button>
+             <button onClick={() => setStep('details')} className="w-full py-3 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-colors">Edit Details</button>
           </div>
         ) : (
           <button disabled={!amount || !verifiedName} onClick={handleTransferRequest} className="w-full py-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-[2rem] font-black uppercase tracking-widest shadow-xl disabled:opacity-30 active:scale-95 transition-all text-xs">Review Transfer</button>

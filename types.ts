@@ -9,6 +9,8 @@ export interface Transaction {
   status: 'completed' | 'pending' | 'failed' | 'reversed' | 'recovery_active';
   isWrongTransfer?: boolean;
   remark?: string; // New: Narration for the payment
+  recipientUid?: string;
+  senderUid?: string;
 }
 
 export interface DebtInfo {
@@ -73,6 +75,30 @@ export interface Badge {
   unlocked: boolean;
 }
 
+export interface CardData {
+  id: string;
+  label: string;
+  number: string;
+  expiry: string;
+  cvv: string;
+  type: 'VISA' | 'MASTERCARD';
+  currency: 'NGN' | 'USD';
+  balance: number;
+  monthlyLimit?: number;
+  isPhysical?: boolean;
+  status?: 'active' | 'pending' | 'blocked';
+}
+
+export interface SavingGoal {
+  id: string;
+  title: string;
+  saved: number;
+  target: number;
+  icon: string;
+  color: string;
+  yield: number;
+}
+
 export interface User {
   name: string;
   phoneNumber: string;
@@ -90,6 +116,8 @@ export interface User {
   badges: Badge[];
   debtInfo?: DebtInfo; // New: Tracking for wrong transfer resolution
   transactionPin?: string; // Secure 4-digit PIN
+  cards?: CardData[];
+  savings?: SavingGoal[];
 }
 
 export interface BillCategory {

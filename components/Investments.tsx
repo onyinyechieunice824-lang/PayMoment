@@ -1,7 +1,9 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Transaction } from '../types';
+import { auth, db, handleFirestoreError, OperationType } from '../src/firebase';
+import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { User, Transaction, Investment } from '../types';
 
 interface InvestmentsProps {
   user: User;
@@ -40,7 +42,7 @@ const Investments: React.FC<InvestmentsProps> = ({ user, setUser, notify, proces
 
   const getRawAmount = () => parseFloat(amount.replace(/,/g, '')) || 0;
 
-  const handleInvest = () => {
+  const handleInvest = async () => {
     const val = getRawAmount();
     if (!val || val < 1000) {
       notify("Minimum investment is ₦1,000.00", "error");
@@ -51,8 +53,10 @@ const Investments: React.FC<InvestmentsProps> = ({ user, setUser, notify, proces
       return;
     }
 
+    if (!auth.currentUser) return;
+
     setIsInvesting(true);
-    setTimeout(() => {
+    try {
       const tx: Transaction = {
         id: Math.random().toString(36).substr(2, 9),
         type: 'debit',
@@ -62,28 +66,37 @@ const Investments: React.FC<InvestmentsProps> = ({ user, setUser, notify, proces
         timestamp: new Date().toLocaleString(),
         status: 'completed'
       };
-      processTransaction(tx, 'NGN');
       
-      const newInv = {
+      const newInv: Investment = {
         id: Math.random().toString(36).substr(2, 9),
         assetName: selectedAsset.name,
         assetIcon: selectedAsset.icon,
         amountInvested: val,
         currentValue: val,
         returns: 0,
-        type: 'stock' as any
+        type: 'stock'
       };
 
-      setUser({
-        ...user,
-        investments: [...(user.investments || []), newInv]
-      });
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      try {
+        await updateDoc(userRef, {
+          investments: arrayUnion(newInv)
+        });
+      } catch (err) {
+        handleFirestoreError(err, OperationType.UPDATE, `users/${auth.currentUser.uid}`);
+      }
 
+      processTransaction(tx, 'NGN');
+      
       setIsInvesting(false);
       setSelectedAsset(null);
       setAmount('');
       notify(`Successfully invested ₦${val.toLocaleString(undefined, {minimumFractionDigits: 2})} in ${selectedAsset.name}!`, 'success');
-    }, 2000);
+    } catch (error) {
+      console.error("Investment failed", error);
+      notify("Investment failed", "error");
+      setIsInvesting(false);
+    }
   };
 
   return (
